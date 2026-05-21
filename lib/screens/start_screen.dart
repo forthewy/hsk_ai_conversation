@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hskchat/services/ai_service.dart';
 
 class StartScreen extends StatefulWidget {
   const StartScreen({super.key});
@@ -12,6 +13,24 @@ class _StartScreenState extends State<StartScreen> {
   var chatBox = Hive.box('chat_box');
   final messageController = TextEditingController();
   List<Map<String, dynamic>> messages = [];
+  final aiService = AiService();
+  bool isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    loadMessage();
+  }
+
+  void loadMessage() {
+    final loaded = chatBox.toMap().entries.map((entry) {
+      return Map<String, dynamic>.from(entry.value);
+    }).toList();
+
+    setState(() {
+      messages = loaded;
+    });
+  }
 
   // 유저 메시지
   Future<void> addUserMessage(String message) async {
@@ -42,12 +61,22 @@ class _StartScreenState extends State<StartScreen> {
     });
   }
 
+  // 메세지 보내기
   Future<void> sendMessage() async {
+    if (isLoading) return;
+    isLoading = true;
+    debugPrint('sendMessage 실행');
     final text = messageController.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      isLoading = false;
+      return;
+    }
     await addUserMessage(text);
-    await addAIMessage("테스트 AI 응답");
     messageController.clear();
+    final aiReply = await aiService.askAI(text);
+    debugPrint(aiReply);
+    await addAIMessage(aiReply);
+    isLoading = false;
   }
 
   // void loadMessages() {
@@ -70,19 +99,23 @@ class _StartScreenState extends State<StartScreen> {
                 itemCount: messages.length,
                 itemBuilder: (context, index) {
                   final message = messages[index];
-                  return
-                    Align(
-                      alignment: message['role'] == 'AI' ? Alignment.centerLeft : Alignment.centerRight,
-                      child: Card(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.0),
-                        ),
-                       color: message['role'] == 'AI' ? Colors.grey : Colors.white,
-                       child: Padding(
-                           padding: const EdgeInsetsGeometry.all(12),
-                           child: Text(message['text'])),
+                  return Align(
+                    alignment: message['role'] == 'AI'
+                        ? Alignment.centerLeft
+                        : Alignment.centerRight,
+                    child: Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12.0),
                       ),
-                    );
+                      color: message['role'] == 'AI'
+                          ? Colors.grey
+                          : Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsetsGeometry.all(12),
+                        child: Text(message['text']),
+                      ),
+                    ),
+                  );
                 },
               ),
             ),
@@ -111,7 +144,7 @@ class _StartScreenState extends State<StartScreen> {
                       ),
                       onSubmitted: (_) async {
                         await sendMessage();
-                      }
+                      },
                     ),
                   ),
 

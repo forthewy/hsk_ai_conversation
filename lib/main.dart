@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hskchat/screens/start_screen.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
-void main() async{
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   await Hive.openBox('chat_box');
@@ -16,9 +16,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       initialRoute: '/',
-      routes: {
-        '/': (context) => StartScreen(),
-      }
-);
+      routes: {'/': (context) => StartScreen()},
+    );
   }
-  }
+}
