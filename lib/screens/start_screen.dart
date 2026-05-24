@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hskchat/screens/word_screen.dart';
 import 'package:hskchat/services/ai_service.dart';
 
 class StartScreen extends StatefulWidget {
@@ -73,7 +74,7 @@ class _StartScreenState extends State<StartScreen> {
     }
     await addUserMessage(text);
     messageController.clear();
-    final aiReply = await aiService.askAI(text);
+    final aiReply = 'aiReply'; //await aiService.askAI(text);
     debugPrint(aiReply);
     await addAIMessage(aiReply);
     isLoading = false;
@@ -160,6 +161,25 @@ class _StartScreenState extends State<StartScreen> {
                     ),
                     child: const Icon(Icons.send, color: Color(0xFFE9DED8)),
                   ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => WordScreen()),
+                      );
+                    },
+                    icon: Icon(Icons.event_note_rounded),
+                  ),
+                  IconButton(onPressed: () {}, icon: Icon(Icons.light)),
+                  IconButton(onPressed: () {}, icon: Icon(Icons.light)),
                 ],
               ),
             ),
