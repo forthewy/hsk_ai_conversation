@@ -80,7 +80,34 @@ class _WordScreenState extends State<WordScreen> {
               ],
             ),
             // 검색 결과
-            Container(color: Colors.grey, height: 200),
+            Container(color: Colors.grey, height: 300),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => WordScreen()),
+                      );
+                    },
+                    icon: Icon(Icons.event_note_rounded),
+                  ),
+                  IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => StartScreen()),
+                      );
+                    },
+                    icon: Icon(Icons.home),
+                  ),
+                  IconButton(onPressed: () {}, icon: Icon(Icons.light)),
+                ],
+              ),
+            ),
           ],
         ),
       ),
