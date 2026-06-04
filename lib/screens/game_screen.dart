@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
+import '../models/game_object.dart';
+
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
 
@@ -15,81 +17,98 @@ class Player {
 
   Player({required this.x, required this.y});
 }
-// npc
-class NPC {
 
-  final String id;
-
-  double x;
-  double y;
-
-  final String dialog;
-
-  NPC({
-    required this.id,
-    required this.x,
-    required this.y,
-    required this.dialog,
-  });
-}
-
-class Building {
-
-  final String id;
-
-  final double x;
-  final double y;
-  // final string image; 건물 이미지는 이후 추가
-
-  Building({
-    required this.id,
-    required this.x,
-    required this.y,
-  });
-}
 class _GameScreenState extends State<GameScreen> {
-  final player = Player(x: 100, y:100);
+  @override
+  void initState() {
+    super.initState();
+
+    objects = [
+      GameObject(
+        id: 'npc_1',
+        type: ObjectType.npc,
+        x: 180,
+        y: 180,
+        name: '여행자',
+      ),
+
+      GameObject(
+        id: 'building_1',
+        type: ObjectType.building,
+        x: 140,
+        y: 40,
+        name: '학교',
+      ),
+    ];
+  }
+
+  List<GameObject> objects = [];
+  GameObject? interactableObject;
+
+  final player = Player(x: 100, y: 100);
   final double worldWidth = 400;
   final double worldHeight = 700;
   final double playerSize = 40;
-  NPC? currentNPC;
-  final List<NPC> npcs = [
-
-    NPC(
-      id: 'npc_1',
-      x: 180,
-      y: 180,
-      dialog: '안녕!',
-    ),
-  ];
-  final List<Building> buildings = [
-
-    Building(
-      id: 'top',
-      x: 140,
-      y: 40,
-    ),
-
-    Building(
-      id: 'left',
-      x: 20,
-      y: 250,
-    ),
-  ];
 
   // 대화창
   bool showDialog = false;
   String dialogText = '';
 
-  // npc
-  final double npcX = 180;
-  final double npcY = 180;
+  void interact() {
+    if (interactableObject == null) return;
+
+    switch (interactableObject!.type) {
+      case ObjectType.npc:
+        startDialog(interactableObject!);
+        break;
+
+      case ObjectType.building:
+        enterBuilding(interactableObject!);
+        break;
+
+      case ObjectType.item:
+      case ObjectType.board:
+    }
+  }
+
+  String getInteractionText() {
+    if (interactableObject == null) return '';
+
+    switch (interactableObject!.type) {
+      case ObjectType.npc:
+        return '${interactableObject!.name}와 대화';
+
+      case ObjectType.building:
+        return '${interactableObject!.name} 입장';
+
+      case ObjectType.item:
+        return '${interactableObject!.name} 줍기';
+
+      case ObjectType.board:
+        return '${interactableObject!.name} 읽기';
+    }
+  }
+
+
+  void checkInteractableObject() {
+    interactableObject = null;
+
+    for (final obj in objects) {
+      final dx = (player.x - obj.x).abs();
+      final dy = (player.y - obj.y).abs();
+
+      if (dx < 50 && dy < 50) {
+        interactableObject = obj;
+        break;
+      }
+    }
+
+    setState(() {});
+  }
 
   //이동
   void movePlayer(double dx, double dy) {
-
     setState(() {
-
       player.x += dx;
       player.y += dy;
 
@@ -114,63 +133,18 @@ class _GameScreenState extends State<GameScreen> {
       }
     });
 
-    checkNPCDistance();
+    checkInteractableObject();
   }
 
-  //npc 거리 확인. 대화 시작
-  void checkNPCDistance() {
-
-    currentNPC = null;
-
-    for (final npc in npcs) {
-
-      final dx = (player.x - npc.x).abs();
-      final dy = (player.y - npc.y).abs();
-
-      if (dx < 50 && dy < 50) {
-
-        currentNPC = npc;
-
-        break;
-      }
-    }
-    if (currentNPC != null)
-
-      Positioned(
-        bottom: 180,
-        left: 120,
-
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          color: Colors.black54,
-
-          child: const Text(
-            '대화하기',
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
-      );
-    // setState(() {
-    //
-    //   if (currentNPC != null) {
-    //
-    //     showDialog = true;
-    //     dialogText = currentNPC!.dialog;
-    //
-    //   } else {
-    //
-    //     showDialog = false;
-    //   }
-    // });
-  }
-
-  void startDialog(NPC npc) {
-
+  void startDialog(GameObject npc) {
     setState(() {
-
       showDialog = true;
-      dialogText = npc.dialog;
+      dialogText = '${npc.name}와 대화 시작';
     });
+  }
+
+  void enterBuilding(GameObject building) {
+    print('${building.name} 입장');
   }
 
   @override
@@ -187,45 +161,22 @@ class _GameScreenState extends State<GameScreen> {
             children: [
               // 맵
               buildMap(),
-              // 빌딩
-              buildBuildings(),
-              // npc
-              buildNPC(),
+              // 빌딩 , npc
+              buildObjects(),
               // 플레이어
               buildPlayer(),
               // 대화창
               if (showDialog) buildDialog(),
               // 기타 ui... 체력... ai 횟수 제한...buildUI(),
-              Positioned.fill(
-                child: Column(
-                  children: [
-
-                    Expanded(
-                      child: Center(
-                        child: Container(
-                          width: 80,
-                          color: Colors.brown,
-                        ),
-                      ),
-                    ),
-                  ],
+              if (interactableObject != null)
+                Positioned(
+                  bottom: 200,
+                  left: 120,
+                  child: ElevatedButton(
+                    onPressed: interact,
+                    child: Text(getInteractionText()),
+                  ),
                 ),
-              ),
-              Positioned.fill(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Center(
-                        child: Container(
-                          height: 80,
-                          color: Colors.brown,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
             ],
           ),
         ),
@@ -235,43 +186,10 @@ class _GameScreenState extends State<GameScreen> {
 
   // 맵
   Widget buildMap() {
-
-    return Container(
-
-      color: Colors.green.shade700,
-
-      // child: Center(
-      //
-      //   child: Container(
-      //     width: 180,
-      //     height: 180,
-      //     color: Colors.brown.shade400,
-      //   ),
-      // ),
-    );
+    return Container(color: Colors.green.shade700);
   }
 
-  // 빌딩
-  Widget buildBuildings() {
-
-    return Stack(
-
-      children: buildings.map((building) {
-
-        return Positioned(
-
-          left: building.x,
-          top: building.y,
-
-          child: buildBuilding(),
-        );
-
-      }).toList(),
-    );
-  }
-
-
-  Widget buildBuilding() {
+  Widget buildBuildingObject() {
     return Container(
       width: 90,
       height: 90,
@@ -282,33 +200,37 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
-  // npc
-  Widget buildNPC() {
-
+  Widget buildObjects() {
     return Stack(
+      children: objects.map((obj) {
+        switch (obj.type) {
+          case ObjectType.npc:
+            return Positioned(
+              left: obj.x,
+              top: obj.y,
+              child: buildNPCObject(obj),
+            );
 
-      children: npcs.map((npc) {
+          case ObjectType.building:
+            return Positioned(
+              left: obj.x,
+              top: obj.y,
+              child: buildBuildingObject(),
+            );
 
-        return Positioned(
-
-          left: npc.x,
-          top: npc.y,
-
-          child: Container(
-            width: 40,
-            height: 40,
-            color: Colors.yellow,
-            child:GestureDetector(
-              onTap: () {
-
-                startDialog(npc);
-              },
-            ),
-          ),
-        );
-
+          case ObjectType.item:
+            // TODO: Handle this case.
+            throw UnimplementedError();
+          case ObjectType.board:
+            // TODO: Handle this case.
+            throw UnimplementedError();
+        }
       }).toList(),
     );
+  }
+
+  Widget buildNPCObject(GameObject obj) {
+    return Container(width: 40, height: 40, color: Colors.yellow);
   }
 
   // 플레이어
