@@ -68,11 +68,10 @@ class _GameScreenState extends State<GameScreen> {
     ),
   };
 
-
   List<GameObject> objects = [];
   GameObject? interactableObject;
   final aiService = AiService();
-
+  bool isNpcLoading = false;
   final player = Player(x: 100, y: 100);
   final double worldWidth = 400;
   final double worldHeight = 700;
@@ -209,22 +208,25 @@ class _GameScreenState extends State<GameScreen> {
               mainAxisSize: MainAxisSize.min,
               children: npcDatabase.values
                   .where((npc) => npc.place == PlaceType.school)
-            .map((npc) {
-                return ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    startDialog(GameObject(
-                      id: 'school_${npc.objectId}',
-                      type: ObjectType.npc,
-                      x: 0,
-                      y: 0,
-                      name: npc.name,
-                      npcDataId: npc.objectId,
-                    ),);
-                  },
-                  child: Text(npc.name),
-                );
-              }).toList(),
+                  .map((npc) {
+                    return ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        startDialog(
+                          GameObject(
+                            id: 'school_${npc.objectId}',
+                            type: ObjectType.npc,
+                            x: 0,
+                            y: 0,
+                            name: npc.name,
+                            npcDataId: npc.objectId,
+                          ),
+                        );
+                      },
+                      child: Text(npc.name),
+                    );
+                  })
+                  .toList(),
             ),
           ],
         );
@@ -375,38 +377,71 @@ class _GameScreenState extends State<GameScreen> {
               children: [
                 Expanded(child: TextField(controller: dialogController)),
                 ElevatedButton(
-                  onPressed: () async {
-                      final text = dialogController.text.trim();
-                      if (text.isEmpty || currentNpc == null) return; // 미입력 or npc 없으면 return
-                      final npcDataId = currentNpc!.npcDataId;
-                      if (npcDataId == null) {
-                        setState(() {
-                          npcText = '이 NPC의 데이터가 없습니다.';
-                        });
-                        return;
-                      }
-                      final npcData = npcDatabase[npcDataId];;
-                      if (npcData == null) {
-                        setState(() {
-                          npcText = 'NPC 데이터를 찾을 수 없습니다.';
-                        });
-                        return;
-                      }
-                      setState(() {
-                        playerText = text;
-                        npcText = '생각 중...';
-                      });
+                  onPressed: isNpcLoading
+                      ? null
+                      : () async {
+                    final text = dialogController.text.trim();
+                    if (text.isEmpty || currentNpc == null) return;
 
-                      final reply = await aiService.npcChat(
-                        npc: npcData,
-                        playerMessage: text,
+                    setState(() {
+                      isNpcLoading = true;
+                      playerText = text;
+                      npcText = '생각 중...';
+                    });
+
+                    final npcDataId = currentNpc!.npcDataId;
+
+                    if (npcDataId == null) {
+                      setState(() {
+                        npcText = '이 NPC의 데이터가 없습니다.';
+                        isNpcLoading = false;
+                      });
+                      return;
+                    }
+
+                    final npcData = npcDatabase[npcDataId];
+
+                    if (npcData == null) {
+                      setState(() {
+                        npcText = 'NPC 데이터를 찾을 수 없습니다.';
+                        isNpcLoading = false;
+                      });
+                      return;
+                    }
+
+                    if (text.startsWith('내 이름은 ')) {
+                      final name = text.replaceFirst('내 이름은 ', '')
+                                        .replaceFirst('이야', '')
+                                        .replaceFirst('야', '')
+                                        .trim();
+                      npcData.memories.removeWhere(
+                            (m) => m.startsWith('플레이어 이름:'),
                       );
+
+                      npcData.memories.add('플레이어 이름:$name');
+                    }
+
+                    try {
+                      final reply = "";
+                      //
+                      // await aiService.npcChat(
+                      //   npc: npcData,
+                      //   playerMessage: text,
+                      // );
+
+                      debugPrint('현재 NPC 기억: ${npcData.memories}');
+
                       setState(() {
                         npcText = reply;
                         dialogController.clear();
                       });
-                    },
-                  child: const Text('입력'),
+                    } finally {
+                      setState(() {
+                        isNpcLoading = false;
+                      });
+                    }
+                  },
+                  child: Text(isNpcLoading ? '응답 중...' : '입력'),
                 ),
                 IconButton(
                   onPressed: () {
@@ -425,4 +460,3 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 }
-
