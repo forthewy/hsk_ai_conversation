@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 
 import '../models/NPCData.dart';
 import '../models/game_object.dart';
@@ -11,6 +12,9 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
+
+const maxRecentMessages = 20;
+
 // 플레이어
 class Player {
   double x;
@@ -19,10 +23,20 @@ class Player {
   Player({required this.x, required this.y});
 }
 
+
 class _GameScreenState extends State<GameScreen> {
+  Map<String, dynamic> getPlayerMemory() {
+    return Map<String, dynamic>.from(playerMemoryBox.toMap());
+  }
+  late final Box npcMemoryBox;
+  // 공동 기억 (전역 기억)
+  late final Box playerMemoryBox;
   @override
   void initState() {
     super.initState();
+    npcMemoryBox  = Hive.box('npc_memory_box');
+    playerMemoryBox = Hive.box('player_memory_box');
+    loadNpcMemories();
 
     objects = [
       GameObject(
@@ -41,6 +55,64 @@ class _GameScreenState extends State<GameScreen> {
         name: '학교',
       ),
     ];
+  }
+
+  Future<void> addRecentMessage({
+    required String npcId,
+    required String role,
+    required String content,
+  }) async {
+    final key = 'recent_$npcId';
+
+    final oldMessages = npcMemoryBox.get(key, defaultValue: []);
+
+    final messages = List<Map<String, String>>.from(
+      oldMessages.map(
+            (e) => Map<String, String>.from(e),
+      ),
+    );
+
+    messages.add({
+      'role': role,
+      'content': content,
+    });
+
+    if (messages.length > 10) {
+      messages.removeRange(0, messages.length - 10);
+    }
+
+    await npcMemoryBox.put(key, messages);
+  }
+    List<Map<String, String>> getRecentMessages(String npcId) {
+      final raw = npcMemoryBox.get(
+        'recent_$npcId',
+        defaultValue: [],
+      );
+
+      return List<Map<String, String>>.from(
+        raw.map(
+              (e) => Map<String, String>.from(e),
+        ),
+      );
+    }
+
+
+  Future<void> loadNpcMemories() async {
+
+    for (final npc in npcDatabase.values) {
+
+      final memories =
+      npcMemoryBox.get(npc.objectId);
+      debugPrint('${npc.objectId} 불러온 기억: $memories');
+
+      if (memories != null) {
+        npc.memories.clear();
+        npc.memories.addAll(
+          List<String>.from(memories),
+        );
+      }
+      debugPrint('${npc.objectId} 현재 기억: ${npc.memories}');
+    }
   }
 
   Map<String, NPCData> npcDatabase = {
@@ -78,6 +150,8 @@ class _GameScreenState extends State<GameScreen> {
   final double playerSize = 40;
   final dialogController = TextEditingController();
   GameObject? currentNpc;
+  bool isInteracting = false;
+
 
   // 대화창
   bool isTalking = false;
@@ -167,10 +241,10 @@ class _GameScreenState extends State<GameScreen> {
 
   void startDialog(GameObject npc) {
     setState(() {
+      isInteracting = true;
       currentNpc = npc;
       isTalking = true;
       npcText = '${npc.name}와 대화 시작';
-      //dialogText = '${npc.name}와 대화 시작';
     });
   }
 
@@ -255,7 +329,7 @@ class _GameScreenState extends State<GameScreen> {
               // 대화창
               if (isTalking) buildDialog(),
               // 기타 ui... 체력... ai 횟수 제한...buildUI(),
-              if (interactableObject != null)
+              if (interactableObject != null && !isInteracting)
                 Positioned(
                   bottom: 200,
                   left: 120,
@@ -418,18 +492,35 @@ class _GameScreenState extends State<GameScreen> {
                             (m) => m.startsWith('플레이어 이름:'),
                       );
 
-                      npcData.memories.add('플레이어 이름:$name');
+                      await playerMemoryBox.put('name', name);
+
+                      debugPrint('플레이어 이름 저장: $name');
                     }
 
                     try {
-                      final reply = "";
-                      //
-                      // await aiService.npcChat(
-                      //   npc: npcData,
-                      //   playerMessage: text,
-                      // );
+                      await addRecentMessage(
+                        npcId: npcData.objectId,
+                        role: 'player',
+                        content: text,
+                      );
+
+
+                      final reply =
+
+                      await aiService.npcChat(
+                        npc: npcData,
+                        playerMessage: text,
+                        playerMemory: getPlayerMemory(),
+                        recentMessages: getRecentMessages(npcData.objectId),
+                      );
 
                       debugPrint('현재 NPC 기억: ${npcData.memories}');
+
+                      await addRecentMessage(
+                        npcId: npcData.objectId,
+                        role: 'npc',
+                        content: reply,
+                      );
 
                       setState(() {
                         npcText = reply;
@@ -447,6 +538,7 @@ class _GameScreenState extends State<GameScreen> {
                   onPressed: () {
                     setState(() {
                       isTalking = false;
+                      isInteracting = false;
                       currentNpc = null;
                     });
                   },
