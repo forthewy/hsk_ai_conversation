@@ -23,8 +23,27 @@ class Player {
   Player({required this.x, required this.y});
 }
 
+// ai 장기기억 거름망
+const allowedTypes = [
+  'name',
+  'goal',
+  'preference',
+  'relationship',
+];
 
 class _GameScreenState extends State<GameScreen> {
+  bool shouldSkipMemoryExtraction(String text) {
+    return text.endsWith('?') ||
+        text.endsWith('？') ||
+        text.contains('뭐') ||
+        text.contains('무엇') ||
+        text.contains('어디') ||
+        text.contains('왜') ||
+        text.contains('어떻게') ||
+        text.contains('언제') ||
+        text.contains('누구') ||
+        text.contains('몇');
+  }
   Map<String, dynamic> getPlayerMemory() {
     return Map<String, dynamic>.from(playerMemoryBox.toMap());
   }
@@ -77,8 +96,8 @@ class _GameScreenState extends State<GameScreen> {
       'content': content,
     });
 
-    if (messages.length > 10) {
-      messages.removeRange(0, messages.length - 10);
+    if (messages.length > maxRecentMessages) {
+      messages.removeRange(0, messages.length - maxRecentMessages);
     }
 
     await npcMemoryBox.put(key, messages);
@@ -483,21 +502,60 @@ class _GameScreenState extends State<GameScreen> {
                       return;
                     }
 
-                    if (text.startsWith('내 이름은 ')) {
-                      final name = text.replaceFirst('내 이름은 ', '')
-                                        .replaceFirst('이야', '')
-                                        .replaceFirst('야', '')
-                                        .trim();
-                      npcData.memories.removeWhere(
-                            (m) => m.startsWith('플레이어 이름:'),
-                      );
+                    // if (text.startsWith('내 이름은 ')) {
+                    //   final name = text.replaceFirst('내 이름은 ', '')
+                    //                     .replaceFirst('이야', '')
+                    //                     .replaceFirst('야', '')
+                    //                     .trim();
+                    //   npcData.memories.removeWhere(
+                    //         (m) => m.startsWith('플레이어 이름:'),
+                    //   );
+                    //
+                    //   await playerMemoryBox.put('name', name);
+                    //
+                    //   debugPrint('플레이어 이름 저장: $name');
+                    // }
 
-                      await playerMemoryBox.put('name', name);
-
-                      debugPrint('플레이어 이름 저장: $name');
-                    }
 
                     try {
+                      if (!shouldSkipMemoryExtraction(text)) {
+                      final extracted = await aiService.extractMemory(
+                        playerMessage: text,
+                        allowedTypes: allowedTypes,
+                      );
+
+                      if (extracted != null) {
+                        final type = extracted['type'];
+                        final value = extracted['value'];
+
+                        if (type == null || value == null || value.isEmpty) {
+                          debugPrint('빈 기억이라 저장 안 함: $extracted');
+                          return;
+                        }
+
+
+                        if (type == 'name') {
+                          await playerMemoryBox.put('name', value);
+                        } else if (type == 'goal') {
+                          await playerMemoryBox.put('goal', value);
+                        } else if (type == 'preference') {
+                          await playerMemoryBox.put('preference', value);
+                        } else if (type == 'relationship') {
+                          npcData.memories.removeWhere(
+                                (m) => m.startsWith('relationship:'),
+                          );
+                          npcData.memories.add('relationship: $value');
+
+                          await npcMemoryBox.put(
+                            npcData.objectId,
+                            List<String>.from(npcData.memories),
+                          );
+                        }
+
+                        debugPrint('추출된 기억 저장: $extracted');
+                      }
+
+
                       await addRecentMessage(
                         npcId: npcData.objectId,
                         role: 'player',
@@ -526,12 +584,12 @@ class _GameScreenState extends State<GameScreen> {
                         npcText = reply;
                         dialogController.clear();
                       });
-                    } finally {
+                    } } finally {
                       setState(() {
                         isNpcLoading = false;
                       });
                     }
-                  },
+                    },
                   child: Text(isNpcLoading ? '응답 중...' : '입력'),
                 ),
                 IconButton(

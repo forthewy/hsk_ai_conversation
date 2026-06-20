@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 enum AiProvider { gemini, ollama }
 
 class AiService {
+
   final AiProvider provider;
   static const apiKey = ''; // 제미나이 키
 
@@ -81,8 +82,6 @@ class AiService {
     final prompt =
         '''
       ${npc.systemPrompt}
-      
-      당신은 NPC입니다.
       
       플레이어에 대한 전역 기억:
       ${playerMemoryText.isEmpty ? '아직 기억 없음' : playerMemoryText}
@@ -167,7 +166,101 @@ class AiService {
       return '지금은 대답할 수 없어.';
     }
   }
+  String cleanJsonText(String text) {
+    return text
+        .replaceAll('```json', '')
+        .replaceAll('```', '')
+        .trim();
+  }
+
+
+  Future<Map<String, dynamic>?> extractMemory({
+    required String playerMessage,
+    required List<String> allowedTypes,
+  }) async {
+    final prompt = '''
+다음 플레이어 발화에서 장기 기억할 만한 정보를 추출하세요.
+
+허용된 type:
+${allowedTypes.join(', ')}
+
+규칙:
+- 허용된 type 중 하나에 해당할 때만 추출하세요.
+- 기억할 내용이 없으면 {"type":"none","value":""} 만 출력하세요.
+- 반드시 JSON만 출력하세요.
+- 설명하지 마세요.
+- 허용된 type에 해당하지 않으면 저장하지 마세요.
+- 질문문, 감탄문은 기억으로 저장하지 마세요.
+- 저장할 정보가 없으면 반드시 아래를 출력하세요.
+- 플레이어가 자신에 대한 새로운 정보를 제공한 경우에만 추출하세요.
+- value는 비어 있으면 안 됩니다.
+
+{"type":"none","value":""}
+
+
+예시:
+입력: 내 이름은 나오야
+출력: {"type":"name","value":"나오"}
+
+입력: 나는 중국어 공부가 목표야
+출력: {"type":"goal","value":"중국어 공부"}
+
+입력: 나는 마라탕을 좋아해
+출력: {"type":"preference","value":"마라탕"}
+
+입력: 내 이름이 뭐야?
+출력: {"type":"none","value":""}
+
+입력: 안녕
+출력: {"type":"none","value":""}
+
+입력: 그렇구나
+출력: {"type":"none","value":""}
+
+입력:
+$playerMessage
+
+출력:
+''';
+
+    try {
+      final response = await http.post(
+        Uri.parse('http://localhost:11434/api/generate'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'model': 'gemma3:4b',
+          'prompt': prompt,
+          'stream': false,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+      final text = (data['response'] ?? '').trim();
+
+      debugPrint('MEMORY EXTRACT RAW: $text');
+      final cleanedText = cleanJsonText(text);
+      final parsed = jsonDecode(cleanedText);
+
+      final type = parsed['type']?.toString();
+      final value = parsed['value']?.toString().trim();
+
+      if (type == null || type == 'none' || value == null || value.isEmpty) {
+        return null;
+      }
+
+      return {
+        'type': type,
+        'value': value,
+      };
+    } catch (e) {
+      debugPrint('기억 추출 오류: $e');
+      return null;
+    }
+  }
 }
 
 //   final response = await http.post(
 //     Uri.parse('http://localhost:11434/api/generate'),
+
+
+
