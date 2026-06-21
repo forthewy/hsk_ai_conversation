@@ -6,6 +6,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
   await Hive.openBox('chat_box');
+  await Hive.openBox('npc_memory_box');
+  await Hive.openBox('player_memory_box');
   runApp(const MyApp());
 }
 

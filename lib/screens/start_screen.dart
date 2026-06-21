@@ -15,8 +15,8 @@ class _StartScreenState extends State<StartScreen> {
   int currentIndex = 0;
   final List<Widget> _screens = [
     const ChatScreen(),
-    const GameScreen(),
     const WordScreen(),
+    const GameScreen(),
   ];
 
 
