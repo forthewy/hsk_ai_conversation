@@ -13,7 +13,11 @@ class WordScreen extends StatefulWidget {
   State<WordScreen> createState() => _WordScreenState();
 }
 
-enum ContentType { wordBook }
+enum ContentType {
+  wordBook,
+  knownWords,
+  favoriteWords,
+}
 
 class _WordScreenState extends State<WordScreen> {
   List<Word> allWords = [];
@@ -21,11 +25,7 @@ class _WordScreenState extends State<WordScreen> {
   int selectedHskLevel = 1;
   final wordSearchController = TextEditingController();
   final wordStatusBox = Hive.box('word_status_box');
-  final studyData =
-  wordStatusBox.get(word.simplified);
-  final studyWord = WordStatus(
-    simplified: word.simplified,
-  );
+
 
   @override
   void dispose() {
@@ -70,18 +70,56 @@ class _WordScreenState extends State<WordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final words = allWords.where((e) => e.level == selectedHskLevel).toList();
+    //final words = allWords.where((e) => e.level == selectedHskLevel).toList();
+    List<Word> words = [];
+    switch (selectedContent) {
+      case ContentType.wordBook:
+        words = allWords
+            .where((e) => e.level == selectedHskLevel)
+            .toList();
+        break;
+
+      case ContentType.knownWords:
+        words = allWords.where((word) {
+
+          final data =
+          wordStatusBox.get(word.simplified);
+
+          if (data == null) {
+            return false;
+          }
+
+          return WordStatus.fromJson(data)
+              .isKnown;
+        }).toList();
+        break;
+
+      case ContentType.favoriteWords:
+        words = allWords.where((word) {
+
+          final data =
+          wordStatusBox.get(word.simplified);
+
+          if (data == null) {
+            return false;
+          }
+
+          return WordStatus.fromJson(data)
+              .isFavorite;
+        }).toList();
+        break;
+    }
 
     return Scaffold(
       backgroundColor: Color(0xFFB68B74),
       body: SafeArea(
         child: Column(
-          // 배너 파트
           children: [
-            Padding(
-              padding: const EdgeInsetsGeometry.symmetric(vertical: 5),
-              child: Container(height: 200, color: Colors.grey),
-            ),
+            // 배너 파트
+            // Padding(
+            //   padding: const EdgeInsetsGeometry.symmetric(vertical: 5),
+            //   child: Container(height: 200, color: Colors.grey),
+            // ),
             // 단어 검색창
             Padding(
               padding: const EdgeInsets.all(8.0),
@@ -122,21 +160,30 @@ class _WordScreenState extends State<WordScreen> {
                         ),
                         // 즐겨찾기
                         IconButton(
-                          onPressed: () {},
+                          onPressed: () {
+                            setState(() {
+                              selectedContent = ContentType.favoriteWords;
+                            });
+                          },
                           icon: Icon(Icons.star),
                           iconSize: 30,
                         ),
+                        // 아는 단어
+                        IconButton(
+                          onPressed: () {
+                            setState(() {
+                              selectedContent = ContentType.knownWords;
+                            });
+                          },
+                          icon: Icon(Icons.check_circle),
+                          iconSize: 30,
+                        ), //
                         // HSK 일정
                         IconButton(
                           onPressed: () {},
                           icon: Icon(Icons.calendar_month),
                           iconSize: 30,
                         ),
-                        IconButton(
-                          onPressed: () {},
-                          icon: Icon(Icons.sticky_note_2_outlined),
-                          iconSize: 30,
-                        ), //
                         IconButton(
                           onPressed: () {},
                           icon: Icon(Icons.sticky_note_2_outlined),
@@ -150,24 +197,25 @@ class _WordScreenState extends State<WordScreen> {
                       color: Colors.grey,
                       child: Column(
                         children: [
-                          // HSK 선택
-                          Wrap(
-                            spacing: 8,
-                            children: List.generate(7, (index) {
-                              final level = index + 1;
+                          if (selectedContent == ContentType.wordBook)
+                            // HSK 선택
+                            Wrap(
+                              spacing: 8,
+                              children: List.generate(7, (index) {
+                                final level = index + 1;
 
-                              return ChoiceChip(
-                                label: Text('HSK$level'),
-                                selected: selectedHskLevel == level,
-                                onSelected: (_) {
-                                  setState(() {
-                                    selectedHskLevel = level;
-                                  });
-                                },
-                              );
-                            }),
-                          ),
-
+                                return ChoiceChip(
+                                  label: Text('HSK$level'),
+                                  selected: selectedHskLevel == level,
+                                  onSelected: (_) {
+                                    setState(() {
+                                      selectedHskLevel = level;
+                                    });
+                                  },
+                                );
+                              }),
+                            ),
+                          
                           const SizedBox(height: 12),
 
                           // 단어 목록
@@ -176,6 +224,23 @@ class _WordScreenState extends State<WordScreen> {
                               itemCount: words.length,
                               itemBuilder: (context, index) {
                                 final word = words[index];
+
+
+
+                                final statusData =
+                                wordStatusBox.get(word.simplified);
+                                //
+                                // final studyWord = WordStatus(
+                                //   simplified: word.simplified,
+                                // );
+
+                                final status = statusData != null
+                                    ? WordStatus.fromJson(statusData)
+                                    : WordStatus(
+                                  simplified: word.simplified,
+                                );
+
+
 
                                 return Card(
                                   child: ListTile(
@@ -186,26 +251,24 @@ class _WordScreenState extends State<WordScreen> {
                                       children: [
                                         Text(word.pinyin),
                                         Text(word.meanings),
-                                        IconButton(
-                                          icon: Icon(
-                                            studyWord.isKnown
-                                                ? Icons.check_circle
-                                                : Icons.circle_outlined,
+                                      ],
+                                    ),
+                                    trailing:  IconButton(
+                                          icon: Icon(  status.isKnown
+                                              ? Icons.check_circle
+                                              : Icons.circle_outlined,
                                           ),
                                           onPressed: () async {
-                                            studyWord.isKnown =
-                                            !studyWord.isKnown;
+                                            status.isKnown = !status.isKnown;
 
-                                            await userWordBox.put(
-                                              studyWord.simplified,
-                                              studyWord.toJson(),
+                                            await wordStatusBox.put(
+                                              status.simplified,
+                                              status.toJson(),
                                             );
 
                                             setState(() {});
                                           },
                                         )
-                                      ],
-                                    ),
                                   ),
                                 );
                               },
