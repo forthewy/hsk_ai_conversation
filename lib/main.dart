@@ -8,6 +8,7 @@ void main() async {
   await Hive.openBox('chat_box');
   await Hive.openBox('npc_memory_box');
   await Hive.openBox('player_memory_box');
+  await Hive.openBox('word_status_box');
   runApp(const MyApp());
 }
 

@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:hive/hive.dart';
+import 'package:hskchat/models/word_status.dart';
 import '../models/word.dart';
 
 class WordScreen extends StatefulWidget {
@@ -18,6 +20,12 @@ class _WordScreenState extends State<WordScreen> {
   ContentType selectedContent = ContentType.wordBook;
   int selectedHskLevel = 1;
   final wordSearchController = TextEditingController();
+  final wordStatusBox = Hive.box('word_status_box');
+  final studyData =
+  wordStatusBox.get(word.simplified);
+  final studyWord = WordStatus(
+    simplified: word.simplified,
+  );
 
   @override
   void dispose() {
@@ -178,6 +186,24 @@ class _WordScreenState extends State<WordScreen> {
                                       children: [
                                         Text(word.pinyin),
                                         Text(word.meanings),
+                                        IconButton(
+                                          icon: Icon(
+                                            studyWord.isKnown
+                                                ? Icons.check_circle
+                                                : Icons.circle_outlined,
+                                          ),
+                                          onPressed: () async {
+                                            studyWord.isKnown =
+                                            !studyWord.isKnown;
+
+                                            await userWordBox.put(
+                                              studyWord.simplified,
+                                              studyWord.toJson(),
+                                            );
+
+                                            setState(() {});
+                                          },
+                                        )
                                       ],
                                     ),
                                   ),

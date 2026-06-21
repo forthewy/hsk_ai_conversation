@@ -13,7 +13,7 @@ class _ChatScreenState extends State<ChatScreen> {
   var chatBox = Hive.box('chat_box');
   final messageController = TextEditingController();
   List<Map<String, dynamic>> messages = [];
-  final aiService = AiService();
+  final aiService = ;//AiService();
   bool isLoading = false;
 
   @override
