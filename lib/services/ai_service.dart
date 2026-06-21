@@ -174,7 +174,7 @@ class AiService {
   }
 
 
-  Future<Map<String, dynamic>?> extractMemory({
+  Future<List<Map<String, String>>> extractMemory({
     required String playerMessage,
     required List<String> allowedTypes,
   }) async {
@@ -186,7 +186,7 @@ ${allowedTypes.join(', ')}
 
 규칙:
 - 허용된 type 중 하나에 해당할 때만 추출하세요.
-- 기억할 내용이 없으면 {"type":"none","value":""} 만 출력하세요.
+- 기억할 내용이 없으면 [] 만 출력하세요.
 - 반드시 JSON만 출력하세요.
 - 설명하지 마세요.
 - 허용된 type에 해당하지 않으면 저장하지 마세요.
@@ -194,28 +194,24 @@ ${allowedTypes.join(', ')}
 - 저장할 정보가 없으면 반드시 아래를 출력하세요.
 - 플레이어가 자신에 대한 새로운 정보를 제공한 경우에만 추출하세요.
 - value는 비어 있으면 안 됩니다.
-
 {"type":"none","value":""}
+- 여러 정보가 있으면 여러 객체로 출력하세요.
+예시: 
 
+입력: 내 이름은 마야야 난 마라탕이 좋아
+출력: [
+  {"type":"name","value":"마야"},
+  {"type":"preference","value":"마라탕"}
+]
 
-예시:
 입력: 내 이름은 나오야
 출력: {"type":"name","value":"나오"}
 
-입력: 나는 중국어 공부가 목표야
-출력: {"type":"goal","value":"중국어 공부"}
-
-입력: 나는 마라탕을 좋아해
-출력: {"type":"preference","value":"마라탕"}
-
 입력: 내 이름이 뭐야?
-출력: {"type":"none","value":""}
+출력: []
 
 입력: 안녕
-출력: {"type":"none","value":""}
-
-입력: 그렇구나
-출력: {"type":"none","value":""}
+출력: []
 
 입력:
 $playerMessage
@@ -239,22 +235,56 @@ $playerMessage
 
       debugPrint('MEMORY EXTRACT RAW: $text');
       final cleanedText = cleanJsonText(text);
+      // final parsed = jsonDecode(cleanedText);
+      // 한개 일때만 가능.. 변경
+      // final type = parsed['type']?.toString();
+      // final value = parsed['value']?.toString().trim();
+
       final parsed = jsonDecode(cleanedText);
 
-      final type = parsed['type']?.toString();
-      final value = parsed['value']?.toString().trim();
-
-      if (type == null || type == 'none' || value == null || value.isEmpty) {
-        return null;
+      if (parsed is! List) {
+        return  [];
       }
 
-      return {
-        'type': type,
-        'value': value,
-      };
+      final memories = <Map<String, String>>[];
+
+
+      for (final item in parsed) {
+        if (item is! Map) continue;
+
+        final type = item['type']?.toString();
+        final value = item['value']?.toString().trim();
+        // return parsed
+        //     .whereType<Map>()
+        //     .map((e) {
+        //   final type = e['type']?.toString();
+        //   final value = e['value']?.toString().trim();
+        if (type == null || type == 'none') continue;
+        if (value == null || value.isEmpty) continue;
+        if (!allowedTypes.contains(type)) continue;
+        //
+        // if (type == null || type == 'none' || value == null || value.isEmpty) {
+        //   return null;
+        // }
+
+
+        memories.add({
+          'type': type,
+          'value': value,
+        });
+      }
+      return memories;
+        // return {
+        //   'type': type,
+        //   'value': value,
+        // };
+      //})
+      //     .whereType<Map<String, String>>()
+      //     .toList();
+
     } catch (e) {
       debugPrint('기억 추출 오류: $e');
-      return null;
+      return [];
     }
   }
 }

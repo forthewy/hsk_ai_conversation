@@ -12,7 +12,6 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-
 const maxRecentMessages = 20;
 
 // 플레이어
@@ -24,12 +23,7 @@ class Player {
 }
 
 // ai 장기기억 거름망
-const allowedTypes = [
-  'name',
-  'goal',
-  'preference',
-  'relationship',
-];
+const allowedTypes = ['name', 'goal', 'preference', 'relationship'];
 
 class _GameScreenState extends State<GameScreen> {
   bool shouldSkipMemoryExtraction(String text) {
@@ -44,16 +38,20 @@ class _GameScreenState extends State<GameScreen> {
         text.contains('누구') ||
         text.contains('몇');
   }
+
   Map<String, dynamic> getPlayerMemory() {
     return Map<String, dynamic>.from(playerMemoryBox.toMap());
   }
+
   late final Box npcMemoryBox;
+
   // 공동 기억 (전역 기억)
   late final Box playerMemoryBox;
+
   @override
   void initState() {
     super.initState();
-    npcMemoryBox  = Hive.box('npc_memory_box');
+    npcMemoryBox = Hive.box('npc_memory_box');
     playerMemoryBox = Hive.box('player_memory_box');
     loadNpcMemories();
 
@@ -76,6 +74,37 @@ class _GameScreenState extends State<GameScreen> {
     ];
   }
 
+  Future<void> saveExtractedMemory({
+    required Map<String, String> extracted,
+    required NPCData npcData,
+  }) async {
+    final type = extracted['type'];
+    final value = extracted['value']?.trim();
+
+    if (type == null || value == null || value.isEmpty) return;
+
+    if (type == 'name') {
+      await playerMemoryBox.put('name', value);
+    } else if (type == 'goal') {
+      await playerMemoryBox.put('goal', value);
+    } else if (type == 'preference') {
+      await playerMemoryBox.put('preference', value);
+    } else if (type == 'relationship') {
+      npcData.memories.removeWhere(
+            (m) => m.startsWith('relationship:'),
+      );
+
+      npcData.memories.add('relationship: $value');
+
+      await npcMemoryBox.put(
+        npcData.objectId,
+        List<String>.from(npcData.memories),
+      );
+    }
+
+    debugPrint('기억 저장 완료: $extracted');
+  }
+
   Future<void> addRecentMessage({
     required String npcId,
     required String role,
@@ -86,15 +115,10 @@ class _GameScreenState extends State<GameScreen> {
     final oldMessages = npcMemoryBox.get(key, defaultValue: []);
 
     final messages = List<Map<String, String>>.from(
-      oldMessages.map(
-            (e) => Map<String, String>.from(e),
-      ),
+      oldMessages.map((e) => Map<String, String>.from(e)),
     );
 
-    messages.add({
-      'role': role,
-      'content': content,
-    });
+    messages.add({'role': role, 'content': content});
 
     if (messages.length > maxRecentMessages) {
       messages.removeRange(0, messages.length - maxRecentMessages);
@@ -102,33 +126,23 @@ class _GameScreenState extends State<GameScreen> {
 
     await npcMemoryBox.put(key, messages);
   }
-    List<Map<String, String>> getRecentMessages(String npcId) {
-      final raw = npcMemoryBox.get(
-        'recent_$npcId',
-        defaultValue: [],
-      );
 
-      return List<Map<String, String>>.from(
-        raw.map(
-              (e) => Map<String, String>.from(e),
-        ),
-      );
-    }
+  List<Map<String, String>> getRecentMessages(String npcId) {
+    final raw = npcMemoryBox.get('recent_$npcId', defaultValue: []);
 
+    return List<Map<String, String>>.from(
+      raw.map((e) => Map<String, String>.from(e)),
+    );
+  }
 
   Future<void> loadNpcMemories() async {
-
     for (final npc in npcDatabase.values) {
-
-      final memories =
-      npcMemoryBox.get(npc.objectId);
+      final memories = npcMemoryBox.get(npc.objectId);
       debugPrint('${npc.objectId} 불러온 기억: $memories');
 
       if (memories != null) {
         npc.memories.clear();
-        npc.memories.addAll(
-          List<String>.from(memories),
-        );
+        npc.memories.addAll(List<String>.from(memories));
       }
       debugPrint('${npc.objectId} 현재 기억: ${npc.memories}');
     }
@@ -170,7 +184,6 @@ class _GameScreenState extends State<GameScreen> {
   final dialogController = TextEditingController();
   GameObject? currentNpc;
   bool isInteracting = false;
-
 
   // 대화창
   bool isTalking = false;
@@ -473,123 +486,96 @@ class _GameScreenState extends State<GameScreen> {
                   onPressed: isNpcLoading
                       ? null
                       : () async {
-                    final text = dialogController.text.trim();
-                    if (text.isEmpty || currentNpc == null) return;
+                          final text = dialogController.text.trim();
+                          if (text.isEmpty || currentNpc == null) return;
 
-                    setState(() {
-                      isNpcLoading = true;
-                      playerText = text;
-                      npcText = '생각 중...';
-                    });
+                          setState(() {
+                            isNpcLoading = true;
+                            playerText = text;
+                            npcText = '생각 중...';
+                          });
 
-                    final npcDataId = currentNpc!.npcDataId;
+                          final npcDataId = currentNpc!.npcDataId;
 
-                    if (npcDataId == null) {
-                      setState(() {
-                        npcText = '이 NPC의 데이터가 없습니다.';
-                        isNpcLoading = false;
-                      });
-                      return;
-                    }
+                          if (npcDataId == null) {
+                            setState(() {
+                              npcText = '이 NPC의 데이터가 없습니다.';
+                              isNpcLoading = false;
+                            });
+                            return;
+                          }
 
-                    final npcData = npcDatabase[npcDataId];
+                          final npcData = npcDatabase[npcDataId];
 
-                    if (npcData == null) {
-                      setState(() {
-                        npcText = 'NPC 데이터를 찾을 수 없습니다.';
-                        isNpcLoading = false;
-                      });
-                      return;
-                    }
+                          if (npcData == null) {
+                            setState(() {
+                              npcText = 'NPC 데이터를 찾을 수 없습니다.';
+                              isNpcLoading = false;
+                            });
+                            return;
+                          }
 
-                    // if (text.startsWith('내 이름은 ')) {
-                    //   final name = text.replaceFirst('내 이름은 ', '')
-                    //                     .replaceFirst('이야', '')
-                    //                     .replaceFirst('야', '')
-                    //                     .trim();
-                    //   npcData.memories.removeWhere(
-                    //         (m) => m.startsWith('플레이어 이름:'),
-                    //   );
-                    //
-                    //   await playerMemoryBox.put('name', name);
-                    //
-                    //   debugPrint('플레이어 이름 저장: $name');
-                    // }
+                          try {
+                            if (!shouldSkipMemoryExtraction(text)) {
+                              debugPrint('1 입력 시작');
+                              // final extracted = await aiService.extractMemory(
+                              //   playerMessage: text,
+                              //   allowedTypes: allowedTypes,
+                              // );
+                              final extractedList = await aiService.extractMemory(
+                                playerMessage: text,
+                                allowedTypes: allowedTypes,
+                              );
 
+                              for (final extracted in extractedList) {
+                                await saveExtractedMemory(
+                                  extracted: extracted,
+                                  npcData: npcData,
+                                );
+                              }
 
-                    try {
-                      if (!shouldSkipMemoryExtraction(text)) {
-                      final extracted = await aiService.extractMemory(
-                        playerMessage: text,
-                        allowedTypes: allowedTypes,
-                      );
+                              debugPrint('2 기억 추출 완료: $extractedList');
+                            }
 
-                      if (extracted != null) {
-                        final type = extracted['type'];
-                        final value = extracted['value'];
+                              debugPrint('3 대화 저장 시작');
 
-                        if (type == null || value == null || value.isEmpty) {
-                          debugPrint('빈 기억이라 저장 안 함: $extracted');
-                          return;
-                        }
+                              await addRecentMessage(
+                                npcId: npcData.objectId,
+                                role: 'player',
+                                content: text,
+                              );
 
+                              debugPrint('4 npcChat 호출 시작');
 
-                        if (type == 'name') {
-                          await playerMemoryBox.put('name', value);
-                        } else if (type == 'goal') {
-                          await playerMemoryBox.put('goal', value);
-                        } else if (type == 'preference') {
-                          await playerMemoryBox.put('preference', value);
-                        } else if (type == 'relationship') {
-                          npcData.memories.removeWhere(
-                                (m) => m.startsWith('relationship:'),
-                          );
-                          npcData.memories.add('relationship: $value');
+                              final reply = await aiService.npcChat(
+                                npc: npcData,
+                                playerMessage: text,
+                                playerMemory: getPlayerMemory(),
+                                recentMessages: getRecentMessages(
+                                  npcData.objectId,
+                                ),
+                              );
 
-                          await npcMemoryBox.put(
-                            npcData.objectId,
-                            List<String>.from(npcData.memories),
-                          );
-                        }
+                            debugPrint('5 npcChat 완료: $reply');
 
-                        debugPrint('추출된 기억 저장: $extracted');
-                      }
+                              debugPrint('현재 NPC 기억: ${npcData.memories}');
 
+                              await addRecentMessage(
+                                npcId: npcData.objectId,
+                                role: 'npc',
+                                content: reply,
+                              );
 
-                      await addRecentMessage(
-                        npcId: npcData.objectId,
-                        role: 'player',
-                        content: text,
-                      );
-
-
-                      final reply =
-
-                      await aiService.npcChat(
-                        npc: npcData,
-                        playerMessage: text,
-                        playerMemory: getPlayerMemory(),
-                        recentMessages: getRecentMessages(npcData.objectId),
-                      );
-
-                      debugPrint('현재 NPC 기억: ${npcData.memories}');
-
-                      await addRecentMessage(
-                        npcId: npcData.objectId,
-                        role: 'npc',
-                        content: reply,
-                      );
-
-                      setState(() {
-                        npcText = reply;
-                        dialogController.clear();
-                      });
-                    } } finally {
-                      setState(() {
-                        isNpcLoading = false;
-                      });
-                    }
-                    },
+                              setState(() {
+                                npcText = reply;
+                                dialogController.clear();
+                              });
+                          } finally {
+                            setState(() {
+                              isNpcLoading = false;
+                            });
+                          }
+                          },
                   child: Text(isNpcLoading ? '응답 중...' : '입력'),
                 ),
                 IconButton(
