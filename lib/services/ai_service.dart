@@ -33,11 +33,65 @@ class AiService {
     }
   }
 
+  String getHskPrompt(int level) {
+    switch (level) {
+      case 1:
+        return '''
+사용자는 HSK1 학습자입니다.
+
+가능한 대화 주제:
+- 인사
+- 자기소개
+- 가족
+- 숫자
+- 시간
+- 장소
+- 좋아하는 것
+- 소유
+- 식사
+- 간단한 질문
+
+모르는 단어는 거의 사용하지 마세요.
+''';
+
+      case 2:
+        return '''
+사용자는 HSK2 학습자입니다.
+
+가능한 대화 주제:
+- HSK1 주제
+- 시간
+- 능력
+- 희망
+- 이유
+- 정도
+- 행동
+
+모르는 단어 1~2개 정도는 사용 가능합니다.
+''';
+
+      case 3:
+        return '''
+사용자는 HSK3 학습자입니다.
+
+일상 회화를 자연스럽게 진행하세요.
+모르는 단어를 2~3개 포함할 수 있습니다.
+''';
+
+      default:
+        return '''
+사용자는 HSK$level 학습자입니다.
+''';
+    }
+  }
+
   Future<String> npcChat({
     required NPCData npc,
     required String playerMessage,
     required Map<String, dynamic> playerMemory,
     required List<Map<String, String>> recentMessages,
+    required List<String> sampledWords,
+    required int hskLevel,
   }) async {
     switch (provider) {
       case AiProvider.gemini:
@@ -46,6 +100,8 @@ class AiService {
           playerMessage: playerMessage,
           playerMemory: playerMemory,
           recentMessages: recentMessages,
+          sampledWords: sampledWords,
+          hskLevel: hskLevel,
         );
 
       case AiProvider.ollama:
@@ -54,6 +110,8 @@ class AiService {
           playerMessage: playerMessage,
           playerMemory: playerMemory,
           recentMessages: recentMessages,
+          sampledWords: sampledWords,
+          hskLevel: hskLevel,
         );
     }
   }
@@ -63,6 +121,8 @@ class AiService {
     required String playerMessage,
     required Map<String, dynamic> playerMemory,
     required List<Map<String, String>> recentMessages,
+    required List<String> sampledWords,
+    required int hskLevel,
   }) {
     final npcMemoryText = npc.memories.isEmpty
         ? '아직 기억한 내용 없음'
@@ -93,6 +153,16 @@ class AiService {
       최근 대화:
       $recentText
       
+      ${getHskPrompt(hskLevel)}
+      
+        사용자가 이미 아는 단어:
+      ${sampledWords.join(', ')}
+      
+      당신은 중국어로 말합니다.
+      위 단어는 참고용입니다.
+      대화 내용과 자연스럽게 어울릴 때만 사용하세요.
+      억지로 사용하지 마세요.
+      
       플레이어:
       $playerMessage
       
@@ -111,6 +181,8 @@ class AiService {
     required String playerMessage,
     required Map<String, dynamic> playerMemory,
     required List<Map<String, String>> recentMessages,
+    required List<String> sampledWords,
+    required int hskLevel,
   }) async {
     try {
       final prompt = buildNpcPrompt(
@@ -118,6 +190,8 @@ class AiService {
         playerMessage: playerMessage,
         playerMemory: playerMemory,
         recentMessages: recentMessages,
+        sampledWords: sampledWords,
+        hskLevel: hskLevel,
       );
 
       final response = await model.generateContent([Content.text(prompt)]);
@@ -139,6 +213,8 @@ class AiService {
     required String playerMessage,
     required Map<String, dynamic> playerMemory,
     required List<Map<String, String>> recentMessages,
+    required List<String> sampledWords,
+    required int hskLevel,
   }) async {
     try {
       final prompt = buildNpcPrompt(
@@ -146,6 +222,8 @@ class AiService {
         playerMessage: playerMessage,
         playerMemory: playerMemory,
         recentMessages: recentMessages,
+        sampledWords: sampledWords,
+        hskLevel: hskLevel,
       );
 
       final response = await http.post(

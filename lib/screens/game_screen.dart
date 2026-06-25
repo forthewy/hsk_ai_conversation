@@ -3,6 +3,7 @@ import 'package:hive/hive.dart';
 
 import '../models/NPCData.dart';
 import '../models/game_object.dart';
+import '../models/word_status.dart';
 import '../services/ai_service.dart';
 
 class GameScreen extends StatefulWidget {
@@ -22,6 +23,8 @@ class Player {
   Player({required this.x, required this.y});
 }
 
+
+
 // ai 장기기억 거름망
 const allowedTypes = ['name', 'goal', 'preference', 'relationship'];
 
@@ -29,7 +32,6 @@ class _GameScreenState extends State<GameScreen> {
   bool shouldSkipMemoryExtraction(String text) {
     return text.endsWith('?') ||
         text.endsWith('？') ||
-        text.contains('뭐') ||
         text.contains('무엇') ||
         text.contains('어디') ||
         text.contains('왜') ||
@@ -51,6 +53,10 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    knownWords = getKnownWords();
+
+
+
     npcMemoryBox = Hive.box('npc_memory_box');
     playerMemoryBox = Hive.box('player_memory_box');
     loadNpcMemories();
@@ -164,9 +170,9 @@ class _GameScreenState extends State<GameScreen> {
       objectId: 'student',
       place: PlaceType.school,
       systemPrompt: '''
-      당신은 한국어가 유창한 학생입니다.
-      중간중간 쉬운 문장이나 단어는 중국어로 말합니다.
-      답변은 2문장 이내로 짧게 합니다.
+      당신은 학교에 다니는 학생입니다.
+      친근하고 짧게 말합니다.
+      질문하는 것을 좋아합니다.
       ''',
       memories: [],
       name: "학생",
@@ -184,6 +190,10 @@ class _GameScreenState extends State<GameScreen> {
   final dialogController = TextEditingController();
   GameObject? currentNpc;
   bool isInteracting = false;
+  List<String> knownWords = [];
+  List<String> sampledWords = [];
+  int playerHskLevel = 1;
+  final wordStatusBox = Hive.box('word_status_box');
 
   // 대화창
   bool isTalking = false;
@@ -206,7 +216,20 @@ class _GameScreenState extends State<GameScreen> {
       case ObjectType.board:
     }
   }
+// 아는 단어
+  List<String> getKnownWords() {
+    final result = <String>[];
 
+    for (final data in wordStatusBox.values) {
+      final status = WordStatus.fromJson(data);
+
+      if (status.isKnown) {
+        result.add(status.simplified);
+      }
+    }
+
+    return result;
+  }
   String getInteractionText() {
     if (interactableObject == null) return '';
 
@@ -343,6 +366,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   Widget build(BuildContext buildContext) {
     return Scaffold(
+
       backgroundColor: Colors.black,
       body: SafeArea(
         child: GestureDetector(
@@ -358,6 +382,51 @@ class _GameScreenState extends State<GameScreen> {
               buildObjects(),
               // 플레이어
               buildPlayer(),
+              Positioned(
+                top: 20,
+                right: 20,
+                child: PopupMenuButton<int>(
+                  onSelected: (value) {
+                    setState(() {
+                      playerHskLevel = value;
+                    });
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 1,
+                      child: Text('HSK1'),
+                    ),
+                    const PopupMenuItem(
+                      value: 2,
+                      child: Text('HSK2 🔒 Coming Soon'), enabled: false
+                    ),
+                    const PopupMenuItem(
+                      value: 3,
+                      child: Text('HSK3 🔒 Coming Soon'), enabled: false
+                    ),
+                    const PopupMenuItem(
+                      value: 4,
+                      child: Text('HSK4 🔒 Coming Soon'), enabled: false
+                    ),
+                    const PopupMenuItem(
+                      value: 5,
+                      child: Text('HSK5 🔒 Coming Soon'), enabled: false
+                    ),
+                    const PopupMenuItem(
+                      value: 6,
+                      child: Text('HSK6 🔒 Coming Soon'), enabled: false
+                    ),
+                  ],
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text('HSK$playerHskLevel ▼'),
+                  ),
+                ),
+              ),
               // 대화창
               if (isTalking) buildDialog(),
               // 기타 ui... 체력... ai 횟수 제한...buildUI(),
@@ -477,6 +546,7 @@ class _GameScreenState extends State<GameScreen> {
           children: [
             Text('나: $playerText'),
             const SizedBox(height: 8),
+
             Text('${currentNpc!.name}: $npcText'),
             //Text(dialogText, style: const TextStyle(fontSize: 20)), // 대화 내용
             Row(
@@ -546,7 +616,9 @@ class _GameScreenState extends State<GameScreen> {
                               );
 
                               debugPrint('4 npcChat 호출 시작');
-
+                            knownWords.shuffle();
+                            final sampledWords =
+                            knownWords.take(5).toList();
                               final reply = await aiService.npcChat(
                                 npc: npcData,
                                 playerMessage: text,
@@ -554,6 +626,8 @@ class _GameScreenState extends State<GameScreen> {
                                 recentMessages: getRecentMessages(
                                   npcData.objectId,
                                 ),
+                                sampledWords : sampledWords ,
+                                hskLevel: playerHskLevel,
                               );
 
                             debugPrint('5 npcChat 완료: $reply');
@@ -584,6 +658,9 @@ class _GameScreenState extends State<GameScreen> {
                       isTalking = false;
                       isInteracting = false;
                       currentNpc = null;
+                      playerText = '';
+                      npcText = '';
+                      dialogController.clear();
                     });
                   },
                   icon: const Icon(Icons.close),
