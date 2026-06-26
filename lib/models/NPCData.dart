@@ -9,6 +9,7 @@ class NPCData {
   final String systemPrompt;
   final PlaceType place;
   final String name;
+  final String greeting;
 
   List<String> memories;
 
@@ -18,5 +19,6 @@ class NPCData {
     required this.systemPrompt,
     required this.memories,
     required this.name,
+    required this.greeting,
   });
 }
