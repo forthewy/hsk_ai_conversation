@@ -12,7 +12,8 @@ class AiService {
   final AiProvider provider;
   static const apiKey = ''; // 제미나이 키
 
-  AiService({this.provider = AiProvider.ollama});
+ AiService({this.provider = AiProvider.ollama});
+ // AiService({this.provider = AiProvider.gemini});
 
   final model = GenerativeModel(
     model: 'gemini-2.5-flash',
@@ -50,8 +51,23 @@ class AiService {
 - 식사
 - 간단한 질문
 
+-아래 순서로 대화하고, 아는 정보가 있는 주제라면 그 다음 주제로 대화합니다
+인사
+↓
+이름
+↓
+좋아하는 것
+↓
+학교
+↓
+친구
+↓
+식사
+↓
+다음 약속
+
 모르는 단어는 거의 사용하지 마세요.
-첫인사는 이미 끝났습니다. 첫인사를 또 하지 마세요
+
 ''';
 
       case 2:
@@ -162,6 +178,11 @@ class AiService {
       위 단어는 참고용입니다.
       대화 내용과 자연스럽게 어울릴 때만 사용하세요.
       억지로 사용하지 마세요.
+      你好 같은 인사를 다시 하지 마세요.
+      이미 기억에 있는 정보를 다시 질문하지 마세요.
+      플레이어의 한국어 문장을 중국어로 번역하려고 하지 마세요.
+      플레이어의 의도만 이해한 후 자연스럽게 대답하세요.
+      병음을 출력하지 마세요.
       
       플레이어:
       $playerMessage
@@ -264,6 +285,11 @@ ${allowedTypes.join(', ')}
 
 규칙:
 - 허용된 type 중 하나에 해당할 때만 추출하세요.
+- goal은 사용자가 앞으로 하고 싶은 일만 저장.
+예시
+- 중국어를 잘하고 싶다.
+- 아래는 goal이 아니다.
+- 나도 여기 살아.
 - 기억할 내용이 없으면 [] 만 출력하세요.
 - 반드시 JSON만 출력하세요.
 - 설명하지 마세요.
@@ -298,26 +324,31 @@ $playerMessage
 ''';
 
     try {
-      final response = await http.post(
-        Uri.parse('http://localhost:11434/api/generate'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'model': 'gemma3:4b',
-          'prompt': prompt,
-          'stream': false,
-        }),
-      );
+      String text;
 
-      final data = jsonDecode(response.body);
-      final text = (data['response'] ?? '').trim();
+      if (provider == AiProvider.gemini) {
+        final response = await model.generateContent([
+          Content.text(prompt),
+        ]);
+        text = (response.text ?? '').trim();
+      } else {
+        final response = await http.post(
+          Uri.parse('http://localhost:11434/api/generate'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'model': 'gemma3:4b',
+            'prompt': prompt,
+            'stream': false,
+          }),
+        );
+
+        final data = jsonDecode(response.body);
+        text = (data['response'] ?? '').trim();
+      }
 
       debugPrint('MEMORY EXTRACT RAW: $text');
-      final cleanedText = cleanJsonText(text);
-      // final parsed = jsonDecode(cleanedText);
-      // 한개 일때만 가능.. 변경
-      // final type = parsed['type']?.toString();
-      // final value = parsed['value']?.toString().trim();
 
+      final cleanedText = cleanJsonText(text);
       final parsed = jsonDecode(cleanedText);
 
       if (parsed is! List) {
