@@ -13,11 +13,7 @@ class WordScreen extends StatefulWidget {
   State<WordScreen> createState() => _WordScreenState();
 }
 
-enum ContentType {
-  wordBook,
-  knownWords,
-  favoriteWords,
-}
+enum ContentType { wordBook, knownWords, favoriteWords }
 
 class _WordScreenState extends State<WordScreen> {
   List<Word> allWords = [];
@@ -25,6 +21,8 @@ class _WordScreenState extends State<WordScreen> {
   int selectedHskLevel = 1;
   final wordSearchController = TextEditingController();
   final wordStatusBox = Hive.box('word_status_box');
+  int selectedPage = 1;
+  bool isHeaderExpanded = false;
 
 
   @override
@@ -74,41 +72,82 @@ class _WordScreenState extends State<WordScreen> {
     List<Word> words = [];
     switch (selectedContent) {
       case ContentType.wordBook:
-        words = allWords
-            .where((e) => e.level == selectedHskLevel)
-            .toList();
+        words = allWords.where((e) => e.level == selectedHskLevel).toList();
         break;
 
       case ContentType.knownWords:
         words = allWords.where((word) {
-
-          final data =
-          wordStatusBox.get(word.simplified);
+          final data = wordStatusBox.get(word.simplified);
 
           if (data == null) {
             return false;
           }
 
-          return WordStatus.fromJson(data)
-              .isKnown;
+          return WordStatus.fromJson(data).isKnown;
         }).toList();
         break;
 
       case ContentType.favoriteWords:
         words = allWords.where((word) {
-
-          final data =
-          wordStatusBox.get(word.simplified);
+          final data = wordStatusBox.get(word.simplified);
 
           if (data == null) {
             return false;
           }
 
-          return WordStatus.fromJson(data)
-              .isFavorite;
+          return WordStatus.fromJson(data).isFavorite;
         }).toList();
         break;
     }
+
+    const pageSize = 30;
+
+    // 현재 HSK 전체 단어
+    final levelWords = allWords
+        .where((e) => e.level == selectedHskLevel)
+        .toList();
+
+    final totalPages = (levelWords.length / pageSize).ceil();
+
+    // 전체 진행률
+    final overallKnownCount = levelWords.where((word) {
+      final data = wordStatusBox.get(word.simplified);
+      if (data == null) return false;
+      return WordStatus.fromJson(data).isKnown;
+    }).length;
+
+    final overallTotalCount = levelWords.length;
+
+    if (selectedContent == ContentType.wordBook) {
+      final start = (selectedPage - 1) * pageSize;
+
+      words = levelWords.skip(start).take(pageSize).toList();
+    }
+
+    // 현재 페이지 진행률
+    // (아직 페이지 기능이 없으므로 words 사용)
+    final currentPageKnownCount = words.where((word) {
+      final data = wordStatusBox.get(word.simplified);
+      if (data == null) return false;
+      return WordStatus.fromJson(data).isKnown;
+    }).length;
+    int startPage = selectedPage - 2;
+    int endPage = selectedPage + 2;
+
+    if (startPage < 1) {
+      endPage += (1 - startPage);
+      startPage = 1;
+    }
+
+    if (endPage > totalPages) {
+      startPage -= (endPage - totalPages);
+      endPage = totalPages;
+
+      if (startPage < 1) {
+        startPage = 1;
+      }
+    }
+    final currentPageTotalCount = words.length;
 
     return Scaffold(
       backgroundColor: Color(0xFFB68B74),
@@ -194,90 +233,225 @@ class _WordScreenState extends State<WordScreen> {
                   ),
                   Expanded(
                     child: Container(
-                      color: Colors.grey,
+                      color: Colors.grey.shade200,
                       child: Column(
                         children: [
-                          if (selectedContent == ContentType.wordBook)
-                            // HSK 선택
-                            Wrap(
-                              spacing: 8,
-                              children: List.generate(7, (index) {
-                                final level = index + 1;
+                          // ===== 상단 카드 =====
+                          if (selectedContent == ContentType.wordBook) ...[
+                            Card(
+                              margin: const EdgeInsets.all(12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  children: [
+                                    // HSK 선택
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: PopupMenuButton<int>(
+                                        onSelected: (value) {
+                                          setState(() {
+                                            selectedHskLevel = value;
+                                            selectedPage = 1; // 레벨 변경시 1페이지
+                                          });
+                                        },
+                                        itemBuilder: (context) {
+                                          return List.generate(
+                                            7,
+                                            (i) => PopupMenuItem(
+                                              value: i + 1,
+                                              child: Text("HSK ${i + 1}"),
+                                            ),
+                                          );
+                                        },
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              "HSK $selectedHskLevel",
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const Icon(Icons.arrow_drop_down),
+                                            const Text("레벨 선택"),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
 
-                                return ChoiceChip(
-                                  label: Text('HSK$level'),
-                                  selected: selectedHskLevel == level,
-                                  onSelected: (_) {
-                                    setState(() {
-                                      selectedHskLevel = level;
-                                    });
-                                  },
-                                );
-                              }),
+                                    const SizedBox(height: 20),
+
+                                    if (isHeaderExpanded)
+                                      const Text(
+                                        "🐼",
+                                        style: TextStyle(fontSize: 60),
+                                      ),
+
+                                    const SizedBox(height: 8),
+
+                                    Text(
+                                      "$overallKnownCount / $overallTotalCount",
+                                    ),
+
+                                    const SizedBox(height: 12),
+
+                                    LinearProgressIndicator(
+                                      value: overallTotalCount == 0
+                                          ? 0
+                                          : overallKnownCount /
+                                                overallTotalCount,
+                                    ),
+
+                                    Text(
+                                      "$currentPageKnownCount / $currentPageTotalCount",
+                                    ),
+
+                                    LinearProgressIndicator(
+                                      value: currentPageTotalCount == 0
+                                          ? 0
+                                          : currentPageKnownCount /
+                                                currentPageTotalCount,
+                                    ),
+
+                                    Divider(),
+                                    IconButton(
+                                      icon: Icon(
+                                        isHeaderExpanded
+                                            ? Icons.keyboard_arrow_up
+                                            : Icons.keyboard_arrow_down,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          isHeaderExpanded = !isHeaderExpanded;
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
-                          
-                          const SizedBox(height: 12),
 
-                          // 단어 목록
+                            // ===== 페이지 =====
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  IconButton(
+                                    onPressed: selectedPage > 1
+                                        ? () {
+                                            setState(() {
+                                              selectedPage--;
+                                            });
+                                          }
+                                        : null,
+                                    icon: const Icon(Icons.chevron_left),
+                                  ),
+
+                                  for (int i = startPage; i <= endPage; i++)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(20),
+                                        onTap: () {
+                                          setState(() {
+                                            selectedPage = i;
+                                          });
+                                        },
+                                        child: Container(
+                                          width: 36,
+                                          height: 36,
+                                          alignment: Alignment.center,
+                                          decoration: BoxDecoration(
+                                            color: selectedPage == i
+                                                ? Theme.of(context).colorScheme.primary
+                                                : Colors.transparent,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Text(
+                                            "$i",
+                                            style: TextStyle(
+                                              color: selectedPage == i
+                                                  ? Colors.white
+                                                  : Colors.black,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                  IconButton(
+                                    onPressed: selectedPage < totalPages
+                                        ? () {
+                                            setState(() {
+                                              selectedPage++;
+                                            });
+                                          }
+                                        : null,
+                                    icon: const Icon(Icons.chevron_right),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 8),
+                          ],
+                          // ===== 단어 목록 =====
                           Expanded(
                             child: ListView.builder(
                               itemCount: words.length,
                               itemBuilder: (context, index) {
                                 final word = words[index];
 
-
-
-                                final statusData =
-                                wordStatusBox.get(word.simplified);
-                                //
-                                // final studyWord = WordStatus(
-                                //   simplified: word.simplified,
-                                // );
+                                final statusData = wordStatusBox.get(
+                                  word.simplified,
+                                );
 
                                 final status = statusData != null
                                     ? WordStatus.fromJson(statusData)
-                                    : WordStatus(
-                                  simplified: word.simplified,
-                                );
-
-
+                                    : WordStatus(simplified: word.simplified);
 
                                 return Card(
                                   child: ListTile(
-                                    onTap: () {},
                                     title: Text(word.simplified),
                                     subtitle: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(word.pinyin),
                                         Text(word.meanings),
                                       ],
                                     ),
-                                    trailing:  IconButton(
-                                          icon: Icon(  status.isKnown
-                                              ? Icons.check_circle
-                                              : Icons.circle_outlined,
-                                          ),
-                                          onPressed: () async {
-                                            status.isKnown = !status.isKnown;
+                                    trailing: IconButton(
+                                      icon: Icon(
+                                        status.isKnown
+                                            ? Icons.check_circle
+                                            : Icons.circle_outlined,
+                                      ),
+                                      onPressed: () async {
+                                        status.isKnown = !status.isKnown;
 
-                                            await wordStatusBox.put(
-                                              status.simplified,
-                                              status.toJson(),
-                                            );
+                                        await wordStatusBox.put(
+                                          status.simplified,
+                                          status.toJson(),
+                                        );
 
-                                            setState(() {});
-                                          },
-                                        )
+                                        setState(() {});
+                                      },
+                                    ),
                                   ),
                                 );
                               },
                             ),
                           ),
                         ],
-                      )
+                      ),
                     ),
-                  )
+                  ),
                 ],
               ),
             ),
