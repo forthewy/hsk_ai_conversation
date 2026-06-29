@@ -13,9 +13,14 @@ class WordScreen extends StatefulWidget {
   State<WordScreen> createState() => _WordScreenState();
 }
 
+// 단어장 타입
 enum ContentType { wordBook, knownWords, favoriteWords }
 
+// 단어 필터링
+enum WordFilter { all, known, unknown }
+
 class _WordScreenState extends State<WordScreen> {
+  WordFilter selectedFilter = WordFilter.all;
   List<Word> allWords = [];
   ContentType selectedContent = ContentType.wordBook;
   int selectedHskLevel = 1;
@@ -23,7 +28,7 @@ class _WordScreenState extends State<WordScreen> {
   final wordStatusBox = Hive.box('word_status_box');
   int selectedPage = 1;
   bool isHeaderExpanded = false;
-
+  Map<String, List<String>> selectedHskLevelMeanings = {};
 
   @override
   void dispose() {
@@ -35,6 +40,7 @@ class _WordScreenState extends State<WordScreen> {
   void initState() {
     super.initState();
     loadWords();
+    loadMeanings();
   }
 
   Future<void> loadWords() async {
@@ -64,6 +70,18 @@ class _WordScreenState extends State<WordScreen> {
     setState(() {
       allWords = loadedWords;
     });
+  }
+
+  Future<void> loadMeanings() async {
+    final jsonString = await rootBundle.loadString(
+      'assets/translations/${selectedHskLevel}_ko.json',
+    );
+
+    final json = jsonDecode(jsonString) as Map<String, dynamic>;
+
+    selectedHskLevelMeanings = json.map(
+      (key, value) => MapEntry(key, List<String>.from(value)),
+    );
   }
 
   @override
@@ -120,8 +138,27 @@ class _WordScreenState extends State<WordScreen> {
 
     if (selectedContent == ContentType.wordBook) {
       final start = (selectedPage - 1) * pageSize;
+      List<Word> filteredWords = levelWords;
 
-      words = levelWords.skip(start).take(pageSize).toList();
+      switch (selectedFilter) {
+        case WordFilter.all:
+          break;
+
+        case WordFilter.known:
+          filteredWords = levelWords.where((word) {
+            final data = wordStatusBox.get(word.simplified);
+            return data != null && WordStatus.fromJson(data).isKnown;
+          }).toList();
+          break;
+
+        case WordFilter.unknown:
+          filteredWords = levelWords.where((word) {
+            final data = wordStatusBox.get(word.simplified);
+            return data == null || !WordStatus.fromJson(data).isKnown;
+          }).toList();
+          break;
+      }
+      words = filteredWords.skip(start).take(pageSize).toList();
     }
 
     // 현재 페이지 진행률
@@ -165,7 +202,7 @@ class _WordScreenState extends State<WordScreen> {
               child: TextField(
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: Color(0xFFE8E7D4),
+                  fillColor: Color(0xFFFFF8EC),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 24,
                     vertical: 20,
@@ -233,99 +270,152 @@ class _WordScreenState extends State<WordScreen> {
                   ),
                   Expanded(
                     child: Container(
-                      color: Colors.grey.shade200,
+                      color: const Color(0xFFF2E8D8),
                       child: Column(
                         children: [
                           // ===== 상단 카드 =====
                           if (selectedContent == ContentType.wordBook) ...[
                             Card(
+                              color: const Color(0xFFFFFDF7),
                               margin: const EdgeInsets.all(12),
                               child: Padding(
                                 padding: const EdgeInsets.all(16),
                                 child: Column(
                                   children: [
-                                    // HSK 선택
+                                    // ===== HSK 선택 =====
                                     Align(
                                       alignment: Alignment.centerLeft,
-                                      child: PopupMenuButton<int>(
-                                        onSelected: (value) {
-                                          setState(() {
-                                            selectedHskLevel = value;
-                                            selectedPage = 1; // 레벨 변경시 1페이지
-                                          });
-                                        },
-                                        itemBuilder: (context) {
-                                          return List.generate(
-                                            7,
-                                            (i) => PopupMenuItem(
-                                              value: i + 1,
-                                              child: Text("HSK ${i + 1}"),
+                                      child: Row(
+                                        children: [
+                                          PopupMenuButton<int>(
+                                            onSelected: (value) {
+                                              setState(() {
+                                                selectedHskLevel = value;
+                                                selectedPage = 1;
+                                              });
+                                            },
+                                            itemBuilder: (context) {
+                                              return List.generate(
+                                                7,
+                                                (i) => PopupMenuItem(
+                                                  value: i + 1,
+                                                  child: Text("HSK ${i + 1}"),
+                                                ),
+                                              );
+                                            },
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  "HSK $selectedHskLevel",
+                                                  style: const TextStyle(
+                                                    fontSize: 20,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                const Icon(
+                                                  Icons.arrow_drop_down,
+                                                ),
+                                                const Text("레벨 선택"),
+                                              ],
                                             ),
-                                          );
-                                        },
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              "HSK $selectedHskLevel",
-                                              style: const TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.bold,
+                                          ),
+                                          const Spacer(),
+                                          PopupMenuButton<WordFilter>(
+                                            onSelected: (value) {
+                                              setState(() {
+                                                selectedFilter = value;
+                                                selectedPage = 1;
+                                              });
+                                            },
+                                            itemBuilder: (context) => const [
+                                              PopupMenuItem(
+                                                value: WordFilter.all,
+                                                child: Text("전체"),
                                               ),
+                                              PopupMenuItem(
+                                                value: WordFilter.known,
+                                                child: Text("암기"),
+                                              ),
+                                              PopupMenuItem(
+                                                value: WordFilter.unknown,
+                                                child: Text("미암기"),
+                                              ),
+                                            ],
+                                            child: Row(
+                                              children: [
+                                                Text(switch (selectedFilter) {
+                                                  WordFilter.all => "전체",
+                                                  WordFilter.known => "암기",
+                                                  WordFilter.unknown => "미암기",
+                                                }),
+                                                const Icon(
+                                                  Icons.filter_alt_sharp,
+                                                ),
+                                                const Text(" 필터"),
+                                              ],
                                             ),
-                                            const Icon(Icons.arrow_drop_down),
-                                            const Text("레벨 선택"),
-                                          ],
-                                        ),
+                                          ),
+                                        ],
                                       ),
                                     ),
 
-                                    const SizedBox(height: 20),
-
-                                    if (isHeaderExpanded)
-                                      const Text(
-                                        "🐼",
-                                        style: TextStyle(fontSize: 60),
-                                      ),
-
-                                    const SizedBox(height: 8),
-
-                                    Text(
-                                      "$overallKnownCount / $overallTotalCount",
-                                    ),
-
-                                    const SizedBox(height: 12),
-
-                                    LinearProgressIndicator(
-                                      value: overallTotalCount == 0
-                                          ? 0
-                                          : overallKnownCount /
-                                                overallTotalCount,
-                                    ),
-
-                                    Text(
-                                      "$currentPageKnownCount / $currentPageTotalCount",
-                                    ),
-
-                                    LinearProgressIndicator(
-                                      value: currentPageTotalCount == 0
-                                          ? 0
-                                          : currentPageKnownCount /
-                                                currentPageTotalCount,
-                                    ),
-
-                                    Divider(),
-                                    IconButton(
-                                      icon: Icon(
-                                        isHeaderExpanded
-                                            ? Icons.keyboard_arrow_up
-                                            : Icons.keyboard_arrow_down,
-                                      ),
-                                      onPressed: () {
+                                    // ===== 접기/펼치기 영역 =====
+                                    InkWell(
+                                      onTap: () {
                                         setState(() {
                                           isHeaderExpanded = !isHeaderExpanded;
                                         });
                                       },
+                                      child: Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.only(top: 20),
+                                        child: Column(
+                                          children: [
+                                            if (isHeaderExpanded) ...[
+                                              const Text(
+                                                "🐼",
+                                                style: TextStyle(fontSize: 60),
+                                              ),
+
+                                              const SizedBox(height: 8),
+
+                                              Text(
+                                                "$overallKnownCount / $overallTotalCount",
+                                              ),
+
+                                              const SizedBox(height: 12),
+
+                                              LinearProgressIndicator(
+                                                value: overallTotalCount == 0
+                                                    ? 0
+                                                    : overallKnownCount /
+                                                          overallTotalCount,
+                                              ),
+
+                                              const SizedBox(height: 12),
+
+                                              Text(
+                                                "$currentPageKnownCount / $currentPageTotalCount",
+                                              ),
+
+                                              LinearProgressIndicator(
+                                                value:
+                                                    currentPageTotalCount == 0
+                                                    ? 0
+                                                    : currentPageKnownCount /
+                                                          currentPageTotalCount,
+                                              ),
+                                            ],
+
+                                            Icon(
+                                              isHeaderExpanded
+                                                  ? Icons.keyboard_arrow_up
+                                                  : Icons.keyboard_arrow_down,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -353,7 +443,9 @@ class _WordScreenState extends State<WordScreen> {
 
                                   for (int i = startPage; i <= endPage; i++)
                                     Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                      ),
                                       child: InkWell(
                                         borderRadius: BorderRadius.circular(20),
                                         onTap: () {
@@ -367,7 +459,9 @@ class _WordScreenState extends State<WordScreen> {
                                           alignment: Alignment.center,
                                           decoration: BoxDecoration(
                                             color: selectedPage == i
-                                                ? Theme.of(context).colorScheme.primary
+                                                ? Theme.of(
+                                                    context,
+                                                  ).colorScheme.primary
                                                 : Colors.transparent,
                                             shape: BoxShape.circle,
                                           ),
@@ -416,6 +510,7 @@ class _WordScreenState extends State<WordScreen> {
                                     : WordStatus(simplified: word.simplified);
 
                                 return Card(
+                                  color: const Color(0xFFFFFDF7),
                                   child: ListTile(
                                     title: Text(word.simplified),
                                     subtitle: Column(
@@ -423,7 +518,12 @@ class _WordScreenState extends State<WordScreen> {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(word.pinyin),
-                                        Text(word.meanings),
+                                        Text(
+                                          selectedHskLevelMeanings[word
+                                                      .simplified]
+                                                  ?.join(", ") ??
+                                              word.meanings,
+                                        ),
                                       ],
                                     ),
                                     trailing: IconButton(
