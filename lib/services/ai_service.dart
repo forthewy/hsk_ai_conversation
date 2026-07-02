@@ -1,9 +1,13 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter/foundation.dart';
+import 'package:hskchat/models/npc_state.dart';
 
+import '../data/hsk_list.dart';
 import '../models/NPCData.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+
+import '../models/hsk_data.dart';
 
 enum AiProvider { gemini, ollama }
 
@@ -34,72 +38,6 @@ class AiService {
     }
   }
 
-  String getHskPrompt(int level) {
-    switch (level) {
-      case 1:
-        return '''
-사용자는 HSK1 학습자입니다.
-
-가능한 대화 주제:
-- 자기소개
-- 가족
-- 숫자
-- 시간
-- 장소
-- 좋아하는 것
-- 소유
-- 식사
-- 간단한 질문
-
--아래 순서로 대화하고, 아는 정보가 있는 주제라면 그 다음 주제로 대화합니다
-인사
-↓
-이름
-↓
-좋아하는 것
-↓
-학교
-↓
-친구
-↓
-식사
-↓
-다음 약속
-
-모르는 단어는 거의 사용하지 마세요.
-
-''';
-
-      case 2:
-        return '''
-사용자는 HSK2 학습자입니다.
-
-가능한 대화 주제:
-- HSK1 주제
-- 시간
-- 능력
-- 희망
-- 이유
-- 정도
-- 행동
-
-모르는 단어 1~2개 정도는 사용 가능합니다.
-''';
-
-      case 3:
-        return '''
-사용자는 HSK3 학습자입니다.
-
-일상 회화를 자연스럽게 진행하세요.
-모르는 단어를 2~3개 포함할 수 있습니다.
-''';
-
-      default:
-        return '''
-사용자는 HSK$level 학습자입니다.
-''';
-    }
-  }
 
   Future<String> npcChat({
     required NPCData npc,
@@ -108,6 +46,7 @@ class AiService {
     required List<Map<String, String>> recentMessages,
     required List<String> sampledWords,
     required int hskLevel,
+    required NpcState state,
   }) async {
     switch (provider) {
       case AiProvider.gemini:
@@ -118,6 +57,7 @@ class AiService {
           recentMessages: recentMessages,
           sampledWords: sampledWords,
           hskLevel: hskLevel,
+          state: state,
         );
 
       case AiProvider.ollama:
@@ -128,8 +68,105 @@ class AiService {
           recentMessages: recentMessages,
           sampledWords: sampledWords,
           hskLevel: hskLevel,
+          state: state,
         );
     }
+  }
+
+
+  String buildHskPrompt(HskData hsk) {
+    return '''
+    사용자는 HSK${hsk.level} 학습자입니다.
+    
+    가능한 대화 주제:
+    ${hsk.topics.map((e) => "- $e").join("\n")}
+    
+    대화 순서:
+    ${hsk.conversationFlow.join(" → ")}
+    한 주제에서 1~2번 정도만 대화한 후
+    다음 주제로 자연스럽게 넘어갑니다.
+    
+    모르는 단어 ${hsk.unknownWordLimit}개까지 사용 가능합니다.
+    ''';
+  }
+
+  String buildStatePrompt(NpcState state) {
+    switch (state) {
+      case NpcState.greeting:
+        return buildGreetingStatePrompt();
+
+      case NpcState.introduction:
+        return buildIntroductionStatePrompt();
+
+      case NpcState.quest:
+        return buildQuestStatePrompt();
+
+      case NpcState.freeTalk:
+        return buildFreeTalkStatePrompt();
+
+      case NpcState.questComplete:
+        return buildQuestCompletePrompt();
+    }
+  }
+
+  String buildGreetingStatePrompt() {
+    return "현재 상태는 Greeting입니다. 인사하고 이름을 물어보세요.";
+  }
+  String buildQuestStatePrompt() {
+    return '''현재 상태 : Quest
+
+          당신의 최우선 목표는
+          플레이어에게 퀘스트를 전달하는 것입니다.
+          
+          퀘스트:
+          학교에 있는 선생님을 찾아가 인사하세요.
+          
+          
+          플레이어가 인사하더라도
+          짧게 인사한 뒤 자연스럽게 퀘스트를 설명하세요.
+          
+          다른 주제로 대화를 시작하지 마세요.''';
+  }
+  String buildIntroductionStatePrompt() {
+    return '''
+    현재 상태: Introduction
+    
+    목표:
+    좋아하는 것을 서로 이야기
+    
+    규칙:
+    - 이름을 다시 묻지 않는다.
+    - 간단한 자기소개를 한다.
+    - 좋아하는 것 등을 자연스럽게 대화한다.
+    ''';
+  }
+
+  String buildQuestCompletePrompt() {
+    return '''
+    현재 상태: QuestComplete
+    
+    목표:
+    플레이어의 퀘스트 완료를 축하한다.
+    
+    규칙:
+    - 완료를 칭찬한다.
+    - 보상을 알려준다.
+    - 새로운 퀘스트는 주지 않는다.
+    ''';
+  }
+
+  String buildFreeTalkStatePrompt() {
+    return '''
+    현재 상태: FreeTalk
+    
+    목표:
+    플레이어와 자유롭게 대화한다.
+    
+    규칙:
+    - 새로운 퀘스트를 시작하지 않는다.
+    - 이미 알고 있는 정보는 다시 묻지 않는다.
+    - 자연스럽게 대화를 이어간다.
+    ''';
   }
 
   String buildNpcPrompt({
@@ -139,6 +176,7 @@ class AiService {
     required List<Map<String, String>> recentMessages,
     required List<String> sampledWords,
     required int hskLevel,
+    required NpcState state,
   }) {
     final npcMemoryText = npc.memories.isEmpty
         ? '아직 기억한 내용 없음'
@@ -154,10 +192,20 @@ class AiService {
         : recentMessages
         .map((m) => '${m['role']}: ${m['content']}')
         .join('\n');
+    final hsk = hskMap[hskLevel]!;
+    if (playerMemory.containsKey("name")) {
+      state = NpcState.introduction;
+    }
+    if (playerMemory.containsKey("preference")) {
+      state = NpcState.quest;
+    }
+    final statePrompt = buildStatePrompt(state);
 
     final prompt =
         '''
-      ${npc.systemPrompt}
+      ${buildNpcProfile(npc)}
+      
+      ${statePrompt}
       
       플레이어에 대한 전역 기억:
       ${playerMemoryText.isEmpty ? '아직 기억 없음' : playerMemoryText}
@@ -169,7 +217,7 @@ class AiService {
       최근 대화:
       $recentText
       
-      ${getHskPrompt(hskLevel)}
+       ${buildHskPrompt(hsk)}
       
         사용자가 이미 아는 단어:
       ${sampledWords.join(', ')}
@@ -178,7 +226,6 @@ class AiService {
       위 단어는 참고용입니다.
       대화 내용과 자연스럽게 어울릴 때만 사용하세요.
       억지로 사용하지 마세요.
-      你好 같은 인사를 다시 하지 마세요.
       이미 기억에 있는 정보를 다시 질문하지 마세요.
       플레이어의 한국어 문장을 중국어로 번역하려고 하지 마세요.
       플레이어의 의도만 이해한 후 자연스럽게 대답하세요.
@@ -204,6 +251,7 @@ class AiService {
     required List<Map<String, String>> recentMessages,
     required List<String> sampledWords,
     required int hskLevel,
+    required NpcState state,
   }) async {
     try {
       final prompt = buildNpcPrompt(
@@ -213,6 +261,7 @@ class AiService {
         recentMessages: recentMessages,
         sampledWords: sampledWords,
         hskLevel: hskLevel,
+        state:state,
       );
 
       final response = await model.generateContent([Content.text(prompt)]);
@@ -236,6 +285,7 @@ class AiService {
     required List<Map<String, String>> recentMessages,
     required List<String> sampledWords,
     required int hskLevel,
+    required NpcState state,
   }) async {
     try {
       final prompt = buildNpcPrompt(
@@ -245,6 +295,7 @@ class AiService {
         recentMessages: recentMessages,
         sampledWords: sampledWords,
         hskLevel: hskLevel,
+        state:state,
       );
 
       final response = await http.post(
@@ -403,3 +454,14 @@ $playerMessage
 
 
 
+String buildNpcProfile(NPCData npc) {
+  return '''
+당신은 ${npc.name}입니다.
+
+성격:
+${npc.personalities.map((e) => "- $e").join("\n")}
+
+가능한 대화 주제:
+${npc.topics.map((e) => "- $e").join("\n")}
+''';
+}

@@ -3,8 +3,10 @@ import 'package:hive/hive.dart';
 
 import '../models/NPCData.dart';
 import '../models/game_object.dart';
+import '../models/npc_state.dart';
 import '../models/word_status.dart';
 import '../services/ai_service.dart';
+import '../data/npc_list.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -136,7 +138,7 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Future<void> loadNpcMemories() async {
-    for (final npc in npcDatabase.values) {
+    for (final npc in npcMap.values) {
       final memories = npcMemoryBox.get(npc.objectId);
       debugPrint('${npc.objectId} 불러온 기억: $memories');
 
@@ -147,34 +149,6 @@ class _GameScreenState extends State<GameScreen> {
       debugPrint('${npc.objectId} 현재 기억: ${npc.memories}');
     }
   }
-
-  Map<String, NPCData> npcDatabase = {
-    'teacher': NPCData(
-      objectId: 'teacher',
-      place: PlaceType.school,
-      systemPrompt: '''
-      당신은 한국어가 유창한 선생님입니다.
-      중간중간 쉬운 문장이나 단어는 중국어로 말합니다.
-      답변은 2문장 이내로 짧게 합니다.
-      ''',
-      memories: [],
-      name: "선생님",
-      greeting: "你好！",
-    ),
-    'student': NPCData(
-      objectId: 'student',
-      place: PlaceType.school,
-      systemPrompt: '''
-      당신은 학교에 다니는 학생입니다.
-      친근하고 짧게 말합니다.
-      질문하는 것을 좋아합니다.
-      ''',
-      memories: [],
-      name: "학생",
-      greeting: "你好！很高兴认识你",
-      //greeting: "嗨！",
-    ),
-  };
 
   List<GameObject> objects = [];
   GameObject? interactableObject;
@@ -192,6 +166,7 @@ class _GameScreenState extends State<GameScreen> {
   int playerHskLevel = 1;
   final wordStatusBox = Hive.box('word_status_box');
   List<Map<String, String>> sessionMessages = [];
+  NpcState currentState = NpcState.greeting;
 
   // 대화창
   bool isTalking = false;
@@ -339,7 +314,7 @@ class _GameScreenState extends State<GameScreen> {
             ),
             Column(
               mainAxisSize: MainAxisSize.min,
-              children: npcDatabase.values
+              children: npcMap.values
                   .where((npc) => npc.place == PlaceType.school)
                   .map((npc) {
                     return ElevatedButton(
@@ -356,7 +331,7 @@ class _GameScreenState extends State<GameScreen> {
                           ),
                         );
                       },
-                      child: Text(npc.name),
+                      child: Text(npc.name+"("+npc.role+")"),
                     );
                   })
                   .toList(),
@@ -533,7 +508,7 @@ class _GameScreenState extends State<GameScreen> {
 
   // 대화
   Widget buildDialog() {
-    final npcData = npcDatabase[currentNpc!.npcDataId]!;
+    final npcData = npcMap[currentNpc!.npcDataId]!;
     final lastMessages = sessionMessages.length > 2
         ? sessionMessages.sublist(sessionMessages.length - 2)
         : sessionMessages;
@@ -683,6 +658,7 @@ class _GameScreenState extends State<GameScreen> {
                               ),
                               sampledWords: sampledWords,
                               hskLevel: playerHskLevel,
+                              state : currentState,
                             );
 
                             debugPrint('5 npcChat 완료: $reply');
