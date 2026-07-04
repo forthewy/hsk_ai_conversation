@@ -1,5 +1,4 @@
 enum NpcState {
-  greeting,
   introduction,
   //dailyTalk,
   quest,

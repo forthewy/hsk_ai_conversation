@@ -166,7 +166,7 @@ class _GameScreenState extends State<GameScreen> {
   int playerHskLevel = 1;
   final wordStatusBox = Hive.box('word_status_box');
   List<Map<String, String>> sessionMessages = [];
-  NpcState currentState = NpcState.greeting;
+  NpcState currentState = NpcState.introduction;
 
   // 대화창
   bool isTalking = false;

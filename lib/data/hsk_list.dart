@@ -16,15 +16,8 @@ final hskMap = {
       "간단한 질문",
     ],
 
-    conversationFlow: [
-      "이름",
-      "좋아하는 것",
-      "학교",
-      "친구",
-      "식사",
-      "다음 약속",
-    ],
-
     unknownWordLimit: 0,
+    grammarPatterns: [],
+    sentencePatterns: [],
   ),
 };
