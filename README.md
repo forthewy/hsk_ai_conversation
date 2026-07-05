@@ -6,7 +6,19 @@ HSK1 학습자를 위한 AI 기반 중국어 회화 학습 앱입니다.
 
 초급 학습자는 실생활에서 배운 회화를 바로 사용하기 어렵습니다.
 본 프로젝트는 HSK1 수준에 맞춘 대화 흐름과 AI를 결합하여
-실제 회화를 연습할 수 있는 학습 환경을 제공합니다.
+실제 회화를 연습할 수 있도록 합니다.
+
+## Tech Stack
+
+- Flutter
+- Dart
+- Hive
+- Gemini API
+- Ollama
+- JSON
+
+<img width="250" height="360" alt="wordbook" src="https://github.com/user-attachments/assets/f7c13a51-3e93-4d5f-969c-ab0ddbc02c38" />
+
 
 ## 특징
 - HSK 레벨 선택
@@ -19,14 +31,8 @@ HSK1 학습자를 위한 AI 기반 중국어 회화 학습 앱입니다.
   - AI Provider를 통해 Gemini와 Ollama를 동일한 인터페이스로 사용할 수 있도록 설계했습니다. 개발 환경에서는 로컬 Ollama를, 실제 서비스에서는 Gemini를 사용할 수 있습니다. 현재 노트북과 핸드폰 모두 AI 작동 되는 것을 확인했습니다.
 - 단어장 시스템
 
-## Tech Stack
-
-- Flutter
-- Dart
-- Hive
-- Gemini API
-- Ollama
-- JSON
 
 ## 업데이트 계획
 - 음성 인식 추가 -> 실제 대화하는 느낌의 학습
+
+- 
