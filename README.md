@@ -28,7 +28,8 @@ AI를 제어하여 초급학습자를 위한 챗봇으로 활용할수 있습니
 - FSM 기반 대화 시스템
    - 대화 흐름의 일관성 및 LLM의 주제 이탈 방지
 - Rule-based 입력 검증
-   - 사용자 입력을 규칙 기반으로 분석하여 첫 인사 등 공통 패턴은 AI 호출 없이 처리하고, 필요한 경우에만 LLM을 호출하도록 설계했습니다.
+   - 사용자 입력을 규칙 기반으로 분석하여 첫 인사 등 공통 패턴은 AI 호출 없이 처리하고, 필요한 경우에만 LLM을 호출하도록 설계.
+   - 의문문에서는 정보를 저장하지 않음.
 - Gemini / Ollama 지원
   - AI Provider를 통해 Gemini와 Ollama를 동일한 인터페이스로 사용할 수 있도록 설계하여 개발 테스트시 드는 AI 비용 축소. 
 - 단어장 시스템
@@ -36,19 +37,24 @@ AI를 제어하여 초급학습자를 위한 챗봇으로 활용할수 있습니
 
 ## AI 호출 및 답변 생성 구조
 
-Player Input
-    ↓
-Rule-based Validation
-    ↓
-Memory Extraction
-    ↓
-FSM State Transition
-    ↓
-Prompt Builder
-    ↓
-AI (Gemini / Ollama)
-    ↓
-NPC Response
+```mermaid
+flowchart TD
+    A["Player Input<br/>플레이어 입력"]
+    B["Rule-based Validation<br/>규칙 기반 검증"]
+    C["Memory Extraction<br/>기억 정보 추출"]
+    D["FSM State Transition<br/>state 에 따른 알맞는 프롬프트 적용"]
+    E["Prompt Builder<br/>상태별 프롬프트 생성"]
+    F["AI Provider<br/>Gemini / Ollama"]
+    G["NPC Response<br/>NPC 응답"]
+
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+```
+## 트러블 슈팅
 
 
 ## 업데이트 계획
