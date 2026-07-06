@@ -196,25 +196,25 @@ class _WordScreenState extends State<WordScreen> {
             //   padding: const EdgeInsetsGeometry.symmetric(vertical: 5),
             //   child: Container(height: 200, color: Colors.grey),
             // ),
-            // 단어 검색창
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: TextField(
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Color(0xFFFFF8EC),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 20,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                controller: wordSearchController,
-              ),
-            ),
+            // // 단어 검색창
+            // Padding(
+            //   padding: const EdgeInsets.all(8.0),
+            //   child: TextField(
+            //     decoration: InputDecoration(
+            //       filled: true,
+            //       fillColor: Color(0xFFFFF8EC),
+            //       contentPadding: const EdgeInsets.symmetric(
+            //         horizontal: 24,
+            //         vertical: 20,
+            //       ),
+            //       border: OutlineInputBorder(
+            //         borderRadius: BorderRadius.circular(24),
+            //         borderSide: BorderSide.none,
+            //       ),
+            //     ),
+            //     controller: wordSearchController,
+            //   ),
+            // ),
             // 사전 종류 (문법.단어.채팅? ETC)
             Expanded(
               child: Row(
@@ -234,16 +234,16 @@ class _WordScreenState extends State<WordScreen> {
                           icon: Icon(Icons.sticky_note_2_outlined),
                           iconSize: 30,
                         ),
-                        // 즐겨찾기
-                        IconButton(
-                          onPressed: () {
-                            setState(() {
-                              selectedContent = ContentType.favoriteWords;
-                            });
-                          },
-                          icon: Icon(Icons.star),
-                          iconSize: 30,
-                        ),
+                        // // 즐겨찾기
+                        // IconButton(
+                        //   onPressed: () {
+                        //     setState(() {
+                        //       selectedContent = ContentType.favoriteWords;
+                        //     });
+                        //   },
+                        //   icon: Icon(Icons.star),
+                        //   iconSize: 30,
+                        // ),
                         // 아는 단어
                         IconButton(
                           onPressed: () {
@@ -254,17 +254,17 @@ class _WordScreenState extends State<WordScreen> {
                           icon: Icon(Icons.check_circle),
                           iconSize: 30,
                         ), //
-                        // HSK 일정
-                        IconButton(
-                          onPressed: () {},
-                          icon: Icon(Icons.calendar_month),
-                          iconSize: 30,
-                        ),
-                        IconButton(
-                          onPressed: () {},
-                          icon: Icon(Icons.sticky_note_2_outlined),
-                          iconSize: 30,
-                        ),
+                        // // HSK 일정
+                        // IconButton(
+                        //   onPressed: () {},
+                        //   icon: Icon(Icons.calendar_month),
+                        //   iconSize: 30,
+                        // ),
+                        // IconButton(
+                        //   onPressed: () {},
+                        //   icon: Icon(Icons.sticky_note_2_outlined),
+                        //   iconSize: 30,
+                        // ),
                       ],
                     ),
                   ),
@@ -373,15 +373,15 @@ class _WordScreenState extends State<WordScreen> {
                                         child: Column(
                                           children: [
                                             if (isHeaderExpanded) ...[
-                                              const Text(
-                                                "🐼",
-                                                style: TextStyle(fontSize: 60),
-                                              ),
+                                              // const Text(
+                                              //   "🐼",
+                                              //   style: TextStyle(fontSize: 60),
+                                              // ),
 
                                               const SizedBox(height: 8),
 
                                               Text(
-                                                "$overallKnownCount / $overallTotalCount",
+                                                "해당 레벨 암기 :  $overallKnownCount / $overallTotalCount",
                                               ),
 
                                               const SizedBox(height: 12),
@@ -396,7 +396,7 @@ class _WordScreenState extends State<WordScreen> {
                                               const SizedBox(height: 12),
 
                                               Text(
-                                                "$currentPageKnownCount / $currentPageTotalCount",
+                                                "페이지 암기 : $currentPageKnownCount / $currentPageTotalCount",
                                               ),
 
                                               LinearProgressIndicator(

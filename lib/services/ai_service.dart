@@ -1,9 +1,9 @@
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter/foundation.dart';
-import 'package:hskchat/models/npc_state.dart';
+import 'package:hskchat/models/chat_state.dart';
 
 import '../data/hsk_list.dart';
-import '../models/NPCData.dart';
+import '../models/npc_data.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
@@ -81,10 +81,10 @@ class AiService {
     ''';
   }
 
-  String buildStatePrompt(NpcState state) {
+  String buildStatePrompt(NpcState state, Map<String, dynamic> playerMemory) {
     switch (state) {
       case NpcState.introduction:
-        return buildIntroductionStatePrompt();
+        return buildIntroductionStatePrompt(playerMemory,);
 
       case NpcState.quest:
         return buildQuestStatePrompt();
@@ -99,31 +99,51 @@ class AiService {
 
   String buildQuestStatePrompt() {
     return '''현재 상태 : Quest
+          Introduction은 이미 끝났습니다.
+          
+          절대로 다시
+          
+          - 자기소개
+          - 이름 묻기
+          - 취미 묻기
+          
+          를 하지 마세요.
 
-          당신의 최우선 목표는
-          플레이어에게 퀘스트를 전달하는 것입니다.
+          반드시 두 문장 안에 퀘스트를 전달하세요.
           
           퀘스트:
           학교에 있는 선생님을 찾아가 인사하세요.
           
+          목표: 퀘스트 전달
           
           플레이어가 인사하더라도
           짧게 인사한 뒤 자연스럽게 퀘스트를 설명하세요.
           
           다른 주제로 대화를 시작하지 마세요.''';
   }
-  String buildIntroductionStatePrompt() {
+  String buildIntroductionStatePrompt(Map<String, dynamic> playerMemory) {
+    final todos = <String>[];
+
+    if (!playerMemory.containsKey("name")) {
+      todos.add("- 이름 알아내기");
+    }
+
+    if (!playerMemory.containsKey("preference")) {
+      todos.add("- 좋아하는 것 알아내기");
+    }
+
+    final todoText = todos.isEmpty
+        ? "- 없음"
+        : todos.join("\n");
     return '''
     현재 상태: Introduction
     
     목표:
-    좋아하는 것을 서로 이야기
-    이름을 알아낸다.
+    ${todos}
     
     규칙:
     - 인사(예: 你好) 하지 않는다.
-    - 간단한 자기소개를 한다.
-    - 좋아하는 것 등을 자연스럽게 대화한다.
+    - 자연스럽게 대화한다.
     ''';
   }
 
@@ -179,13 +199,10 @@ class AiService {
         .map((m) => '${m['role']}: ${m['content']}')
         .join('\n');
     final hsk = hskMap[hskLevel]!;
-    if (playerMemory.containsKey("name")) {
-      state = NpcState.introduction;
-    }
-    if (playerMemory.containsKey("preference")) {
+    if (playerMemory.containsKey("preference") && playerMemory.containsKey("name")) {
       state = NpcState.quest;
     }
-    final statePrompt = buildStatePrompt(state);
+    final statePrompt = buildStatePrompt(state, playerMemory);
 
     final prompt =
         '''
@@ -215,12 +232,19 @@ class AiService {
       이미 기억에 있는 정보를 다시 질문하지 마세요.
       플레이어의 한국어 문장을 중국어로 번역하려고 하지 마세요.
       플레이어의 의도만 이해한 후 자연스럽게 대답하세요.
-      병음을 출력하지 마세요.
+      발음을 출력하지 마세요.
       츌력은 아래와 같은 형식 입니다
-      예시: 我喜欢画画！ 你呢？你有什么爱好？ （나는 그림을 그리기를 좋아해! 너는? 네 취미가 뭐야？）
+      반드시 괄호 안에 한국어 번역을 포함하세요.
+      
+      잘못된 예
+      你好！
+      
+      올바른 예
+      你好！ （안녕!）
       
       플레이어:
       $playerMessage
+
       
       NPC:
       ''';
@@ -253,7 +277,15 @@ class AiService {
       );
 
       final response = await model.generateContent([Content.text(prompt)]);
+      final usage = response.usageMetadata;
 
+      debugPrint("prompt: ${usage?.promptTokenCount}");
+      debugPrint("candidate: ${usage?.candidatesTokenCount}");
+      debugPrint("total: ${usage?.totalTokenCount}");
+      final c = response.candidates.first;
+
+      debugPrint("finish: ${c.finishReason}");
+      debugPrint("content: ${c.content.parts}");
       return response.text ?? '응답없음';
     } catch (e) {
       debugPrint('Gemini 오류: $e');
@@ -285,7 +317,7 @@ class AiService {
         hskLevel: hskLevel,
         state:state,
       );
-
+      final watch = Stopwatch()..start();
       final response = await http.post(
         Uri.parse('http://localhost:11434/api/generate'),
         headers: {'Content-Type': 'application/json'},
@@ -293,8 +325,14 @@ class AiService {
           'model': 'gemma3:4b',
           'prompt': prompt,
           'stream': false,
+          'options': {
+            'temperature': 0.3,
+            'num_predict': 60,
+          },
         }),
       );
+          watch.stop();
+          debugPrint("HTTP POST: ${watch.elapsedMilliseconds} ms");
 
       final data = jsonDecode(response.body);
 
@@ -317,28 +355,64 @@ class AiService {
     required List<String> allowedTypes,
   }) async {
     final prompt = '''
+너는 입력문 문장에서 key,value 를 추출하는 JSON 추출기이다.
 
 허용된 type:
 ${allowedTypes.join(', ')}
 
 규칙:
 - 허용된 type 중 하나에 해당할 때만 추출하세요.
-- goal은 사용자가 앞으로 하고 싶은 일만 저장.
-예시
-- 중국어를 잘하고 싶다.
-- 아래는 goal이 아니다.
-- 나도 여기 살아.
-- 기억할 내용이 없으면 [] 만 출력하세요.
-- 반드시 JSON만 출력하세요.
-- 허용된 type에 해당하지 않으면 저장하지 마세요.
-- 질문문, 감탄문은 기억으로 저장하지 마세요.
-- 플레이어가 자신에 대한 새로운 정보를 제공한 경우에만 추출하세요.
-- value는 비어 있으면 안 됩니다.
+- 결과는 무조건 JSON List 형식 하나만 출력해라. 다른 설명은 절대 금지한다.
+- 정보가 없으면 반드시 [] 만 출력해라.
+
 - name은 플레이어가 자신의 이름을 명시적으로 말한 경우에만 저장하세요.
-- "내 이름은", "나는 ○○야", "난 ○○이야", "저는 ○○입니다"와 같은 경우만 name으로 저장하세요.
-- "난 잘지내", "난 배고파", "난 학생이야"의 "난"은 이름이 아닙니다.
-- name은 자기소개 문장에서만 추출하세요.
-- name은 "내 이름은" 처럼 자신의 이름을 소개하는 문장에서만 추출하세요.
+난 소망이야
+→ name
+
+나는 민수야
+→ name
+
+내 이름은 리밍이야
+→ name
+
+저는 철수입니다
+→ name
+
+저는 김영희예요
+→ name
+난 학생이야
+→ []
+
+난 개발자야
+→ []
+
+난 배고파
+→ []
+
+난 피곤해
+→ []
+
+난 행복해
+→ []
+
+난 잘 지내
+→ []
+
+- 좋아한다고 말한 모든 대상은 preference이다.
+  
+  예)
+  
+  난 축구를 좋아해
+  → preference
+  
+  난 사진 찍는게 좋아
+  → preference
+
+  난 음악 듣는 걸 좋아해
+  → preference
+  
+  난 커피를 좋아해
+  → preference
 - 여러 정보가 있으면 여러 객체로 출력하세요.
 예시: 
 
@@ -351,29 +425,32 @@ ${allowedTypes.join(', ')}
 입력: 내 이름이 뭐야?
 출력: []
 
-입력: 안녕
-출력: []
-
-입력: 응 난 잘지내!
-출력:
-[]
-
 입력: 난 배고파.
 출력:
 []
 
 입력: 난 음악 듣는 걸 좋아해.
 출력:
-{"type":"preference","value":"음악 듣는 것"}
+[
+  {
+    "type":"preference",
+    "value":"음악 듣는 것"
+  }
+]
 
 입력: 내 이름은 리밍이야.
 출력:
-{"type":"name","value":"리밍"}
+[
+  {
+    "type":"name",
+    "value":"리밍"
+  }
+]
 
 입력:
 $playerMessage
 
-출력:
+JSON 출력:
 ''';
 
     try {
@@ -386,7 +463,7 @@ $playerMessage
         text = (response.text ?? '').trim();
       } else {
         final response = await http.post(
-          Uri.parse('http://localhost:11434/api/generate'),
+         Uri.parse('http://localhost:11434/api/generate'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'model': 'gemma3:4b',
@@ -394,7 +471,7 @@ $playerMessage
             'stream': false,
           }),
         );
-
+        debugPrint(response.body);
         final data = jsonDecode(response.body);
         text = (data['response'] ?? '').trim();
       }
@@ -416,34 +493,17 @@ $playerMessage
 
         final type = item['type']?.toString();
         final value = item['value']?.toString().trim();
-        // return parsed
-        //     .whereType<Map>()
-        //     .map((e) {
-        //   final type = e['type']?.toString();
-        //   final value = e['value']?.toString().trim();
         if (type == null || type == 'none') continue;
         if (value == null || value.isEmpty) continue;
         if (!allowedTypes.contains(type)) continue;
-        //
-        // if (type == null || type == 'none' || value == null || value.isEmpty) {
-        //   return null;
-        // }
-
 
         memories.add({
           'type': type,
           'value': value,
         });
       }
+      debugPrint(prompt);
       return memories;
-        // return {
-        //   'type': type,
-        //   'value': value,
-        // };
-      //})
-      //     .whereType<Map<String, String>>()
-      //     .toList();
-
     } catch (e) {
       debugPrint('기억 추출 오류: $e');
       return [];
@@ -467,3 +527,4 @@ ${npc.personalities.map((e) => "- $e").join("\n")}
 ${npc.topics.map((e) => "- $e").join("\n")}
 ''';
 }
+

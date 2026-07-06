@@ -1,4 +1,4 @@
-import "package:hskchat/models/NPCData.dart";
+import "package:hskchat/models/npc_data.dart";
 
 final npcMap = <String, NPCData>{
   "student": NPCData(
@@ -27,7 +27,7 @@ final npcMap = <String, NPCData>{
   "teacher": NPCData(
     objectId: "teacher",
     name: "선생님",
-    place: PlaceType.school,
+    place: PlaceType.street,
     greeting: "你好！",
     role: "한국어가 유창한 선생님",
 

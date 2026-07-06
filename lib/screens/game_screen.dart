@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
 
-import '../models/NPCData.dart';
+import '../models/npc_data.dart';
 import '../models/game_object.dart';
-import '../models/npc_state.dart';
+import '../models/chat_state.dart';
 import '../models/word_status.dart';
 import '../services/ai_service.dart';
 import '../data/npc_list.dart';
@@ -40,7 +40,30 @@ class _GameScreenState extends State<GameScreen> {
         text.contains('누구') ||
         text.contains('몇');
   }
+  String preprocessPlayerMessage(String text) {
+    final normalized = text
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[!?.~\s]'), '');
 
+    const greetings = {
+      '안녕',
+      '안녕하세요',
+      '반가워',
+      '반갑습니다',
+      'hi',
+      'hello',
+      'hey',
+      '你好',
+      '您好',
+    };
+
+    if (greetings.contains(normalized)) {
+      return '(인사만 함)';
+    }
+
+    return text;
+  }
   Map<String, dynamic> getPlayerMemory() {
     return Map<String, dynamic>.from(playerMemoryBox.toMap());
   }
@@ -60,14 +83,6 @@ class _GameScreenState extends State<GameScreen> {
     loadNpcMemories();
 
     objects = [
-      GameObject(
-        id: 'school_student_object_1',
-        type: ObjectType.npc,
-        x: 180,
-        y: 180,
-        name: '학생',
-        npcDataId: 'student',
-      ),
       GameObject(
         id: 'building_1',
         type: ObjectType.building,
@@ -304,37 +319,48 @@ class _GameScreenState extends State<GameScreen> {
               const Text('이곳에서 무엇을 할까?'),
             ],
           ),
-
           actions: [
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: npcMap.values
+                    .where((npc) => npc.place == PlaceType.school)
+                    .map((npc) {
+                      return ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          startDialog(
+                            GameObject(
+                              id: 'school_${npc.objectId}',
+                              type: ObjectType.npc,
+                              x: 0,
+                              y: 0,
+                              name: npc.name,
+                              npcDataId: npc.objectId,
+                            ),
+                          );
+                        },
+                        //  대화 버튼
+                        child: Text(npc.name+"("+npc.role+")"),
+                      );
+                    })
+                    .toList(),
+              ),
+            ),
+            Divider(),
             TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
               onPressed: () {
                 Navigator.pop(context);
               },
               child: const Text('나가기'),
-            ),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: npcMap.values
-                  .where((npc) => npc.place == PlaceType.school)
-                  .map((npc) {
-                    return ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        startDialog(
-                          GameObject(
-                            id: 'school_${npc.objectId}',
-                            type: ObjectType.npc,
-                            x: 0,
-                            y: 0,
-                            name: npc.name,
-                            npcDataId: npc.objectId,
-                          ),
-                        );
-                      },
-                      child: Text(npc.name+"("+npc.role+")"),
-                    );
-                  })
-                  .toList(),
             ),
           ],
         );
@@ -433,8 +459,8 @@ class _GameScreenState extends State<GameScreen> {
 
   Widget buildBuildingObject(GameObject obj) {
     return Container(
-      width: 90,
-      height: 90,
+      width: 100,
+      height: 100,
       decoration: BoxDecoration(
         color: Colors.brown,
         borderRadius: BorderRadius.circular(12),
@@ -618,6 +644,10 @@ class _GameScreenState extends State<GameScreen> {
                           try {
                             if (!shouldSkipMemoryExtraction(text)) {
                               debugPrint('1 입력 시작');
+
+                              // 기억 추출 시간 측정
+                              final memoryWatch = Stopwatch()..start();
+
                               // final extracted = await aiService.extractMemory(
                               //   playerMessage: text,
                               //   allowedTypes: allowedTypes,
@@ -627,7 +657,8 @@ class _GameScreenState extends State<GameScreen> {
                                     playerMessage: text,
                                     allowedTypes: allowedTypes,
                                   );
-
+                              memoryWatch.stop();
+                              debugPrint("extractMemory: ${memoryWatch.elapsedMilliseconds} ms");
                               for (final extracted in extractedList) {
                                 await saveExtractedMemory(
                                   extracted: extracted,
@@ -637,7 +668,8 @@ class _GameScreenState extends State<GameScreen> {
 
                               debugPrint('2 기억 추출 완료: $extractedList');
                             }
-
+// NPC 답변 시간 측정
+                            final chatWatch = Stopwatch()..start();
                             debugPrint('3 대화 저장 시작');
 
                             await addRecentMessage(
@@ -649,9 +681,12 @@ class _GameScreenState extends State<GameScreen> {
                             debugPrint('4 npcChat 호출 시작');
                             knownWords.shuffle();
                             final sampledWords = knownWords.take(5).toList();
+                            // NPC에게 보낼 메시지만 전처리
+                            final npcMessage = preprocessPlayerMessage(text);
+
                             final reply = await aiService.npcChat(
                               npc: npcData,
-                              playerMessage: text,
+                              playerMessage: npcMessage,
                               playerMemory: getPlayerMemory(),
                               recentMessages: getRecentMessages(
                                 npcData.objectId,
@@ -660,7 +695,8 @@ class _GameScreenState extends State<GameScreen> {
                               hskLevel: playerHskLevel,
                               state : currentState,
                             );
-
+                            chatWatch.stop();
+                            debugPrint("npcChat: ${chatWatch.elapsedMilliseconds} ms");
                             debugPrint('5 npcChat 완료: $reply');
 
                             debugPrint('현재 NPC 기억: ${npcData.memories}');

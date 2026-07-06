@@ -14,7 +14,7 @@ class _StartScreenState extends State<StartScreen> {
 
   int currentIndex = 0;
   final List<Widget> _screens = [
-    const ChatScreen(),
+    //const ChatScreen(),
     const WordScreen(),
     const GameScreen(),
   ];
@@ -38,7 +38,7 @@ class _StartScreenState extends State<StartScreen> {
           });
         },
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
+          //BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
           BottomNavigationBarItem(icon: Icon(Icons.sticky_note_2_outlined), label: '단어장'),
           BottomNavigationBarItem(icon: Icon(Icons.play_circle_outline), label: '학습시작'),
           //BottomNavigationBarItem(icon: Icon(Icons.settings), label: '채팅'),
