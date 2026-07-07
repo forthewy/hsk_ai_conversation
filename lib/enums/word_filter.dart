@@ -1,0 +1,1 @@
+enum WordFilter { all, known, unknown }

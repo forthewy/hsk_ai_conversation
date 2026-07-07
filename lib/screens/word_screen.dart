@@ -1,10 +1,10 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:hive/hive.dart';
 import 'package:hskchat/models/word_status.dart';
-import '../models/word.dart';
+import 'package:provider/provider.dart';
+import '../enums/content_type.dart';
+import '../enums/word_filter.dart';
+import '../viewmodels/word_view_model.dart';
 
 class WordScreen extends StatefulWidget {
   const WordScreen({super.key});
@@ -13,22 +13,8 @@ class WordScreen extends StatefulWidget {
   State<WordScreen> createState() => _WordScreenState();
 }
 
-// 단어장 타입
-enum ContentType { wordBook, knownWords, favoriteWords }
-
-// 단어 필터링
-enum WordFilter { all, known, unknown }
-
 class _WordScreenState extends State<WordScreen> {
-  WordFilter selectedFilter = WordFilter.all;
-  List<Word> allWords = [];
-  ContentType selectedContent = ContentType.wordBook;
-  int selectedHskLevel = 1;
   final wordSearchController = TextEditingController();
-  final wordStatusBox = Hive.box('word_status_box');
-  int selectedPage = 1;
-  bool isHeaderExpanded = false;
-  Map<String, List<String>> selectedHskLevelMeanings = {};
 
   @override
   void dispose() {
@@ -39,152 +25,33 @@ class _WordScreenState extends State<WordScreen> {
   @override
   void initState() {
     super.initState();
-    loadWords();
-    loadMeanings();
-  }
-
-  Future<void> loadWords() async {
-    final files = [
-      'assets/data/1.json',
-      'assets/data/2.json',
-      'assets/data/3.json',
-      'assets/data/4.json',
-      'assets/data/5.json',
-      'assets/data/6.json',
-      'assets/data/7.json',
-    ];
-
-    List<Word> loadedWords = [];
-
-    for (int i = 0; i < files.length; i++) {
-      final level = i + 1;
-      final path = files[i];
-
-      final jsonString = await rootBundle.loadString(path);
-
-      final List<dynamic> jsonList = jsonDecode(jsonString);
-
-      loadedWords.addAll(jsonList.map((e) => Word.fromJson(e, level)));
-    }
-
-    setState(() {
-      allWords = loadedWords;
-    });
-  }
-
-  Future<void> loadMeanings() async {
-    final jsonString = await rootBundle.loadString(
-      'assets/translations/${selectedHskLevel}_ko.json',
-    );
-
-    final json = jsonDecode(jsonString) as Map<String, dynamic>;
-
-    selectedHskLevelMeanings = json.map(
-      (key, value) => MapEntry(key, List<String>.from(value)),
-    );
+    context.read<WordViewModel>().initialize();
   }
 
   @override
   Widget build(BuildContext context) {
-    //final words = allWords.where((e) => e.level == selectedHskLevel).toList();
-    List<Word> words = [];
-    switch (selectedContent) {
-      case ContentType.wordBook:
-        words = allWords.where((e) => e.level == selectedHskLevel).toList();
-        break;
+    final viewModel = context.watch<WordViewModel>();
+    final allWords = viewModel.allWords;
 
-      case ContentType.knownWords:
-        words = allWords.where((word) {
-          final data = wordStatusBox.get(word.simplified);
+    final overallTotalCount = viewModel.levelWords.length;
 
-          if (data == null) {
-            return false;
-          }
-
-          return WordStatus.fromJson(data).isKnown;
-        }).toList();
-        break;
-
-      case ContentType.favoriteWords:
-        words = allWords.where((word) {
-          final data = wordStatusBox.get(word.simplified);
-
-          if (data == null) {
-            return false;
-          }
-
-          return WordStatus.fromJson(data).isFavorite;
-        }).toList();
-        break;
-    }
-
-    const pageSize = 30;
-
-    // 현재 HSK 전체 단어
-    final levelWords = allWords
-        .where((e) => e.level == selectedHskLevel)
-        .toList();
-
-    final totalPages = (levelWords.length / pageSize).ceil();
-
-    // 전체 진행률
-    final overallKnownCount = levelWords.where((word) {
-      final data = wordStatusBox.get(word.simplified);
-      if (data == null) return false;
-      return WordStatus.fromJson(data).isKnown;
-    }).length;
-
-    final overallTotalCount = levelWords.length;
-
-    if (selectedContent == ContentType.wordBook) {
-      final start = (selectedPage - 1) * pageSize;
-      List<Word> filteredWords = levelWords;
-
-      switch (selectedFilter) {
-        case WordFilter.all:
-          break;
-
-        case WordFilter.known:
-          filteredWords = levelWords.where((word) {
-            final data = wordStatusBox.get(word.simplified);
-            return data != null && WordStatus.fromJson(data).isKnown;
-          }).toList();
-          break;
-
-        case WordFilter.unknown:
-          filteredWords = levelWords.where((word) {
-            final data = wordStatusBox.get(word.simplified);
-            return data == null || !WordStatus.fromJson(data).isKnown;
-          }).toList();
-          break;
-      }
-      words = filteredWords.skip(start).take(pageSize).toList();
-    }
-
-    // 현재 페이지 진행률
-    // (아직 페이지 기능이 없으므로 words 사용)
-    final currentPageKnownCount = words.where((word) {
-      final data = wordStatusBox.get(word.simplified);
-      if (data == null) return false;
-      return WordStatus.fromJson(data).isKnown;
-    }).length;
-    int startPage = selectedPage - 2;
-    int endPage = selectedPage + 2;
+    int startPage = viewModel.selectedPage - 2;
+    int endPage = viewModel.selectedPage + 2;
 
     if (startPage < 1) {
       endPage += (1 - startPage);
       startPage = 1;
     }
 
-    if (endPage > totalPages) {
-      startPage -= (endPage - totalPages);
-      endPage = totalPages;
+    if (endPage > viewModel.totalPages) {
+      startPage -= (endPage - viewModel.totalPages);
+      endPage = viewModel.totalPages;
 
       if (startPage < 1) {
         startPage = 1;
       }
     }
-    final currentPageTotalCount = words.length;
+    final currentPageTotalCount = viewModel.words.length;
 
     return Scaffold(
       backgroundColor: Color(0xFFB68B74),
@@ -227,9 +94,9 @@ class _WordScreenState extends State<WordScreen> {
                         // 단어장 (인기 단어장, 학습회화 등등)
                         IconButton(
                           onPressed: () {
-                            setState(() {
-                              selectedContent = ContentType.wordBook;
-                            });
+                            context.read<WordViewModel>().changeContent(
+                              ContentType.wordBook,
+                            );
                           },
                           icon: Icon(Icons.sticky_note_2_outlined),
                           iconSize: 30,
@@ -247,9 +114,9 @@ class _WordScreenState extends State<WordScreen> {
                         // 아는 단어
                         IconButton(
                           onPressed: () {
-                            setState(() {
-                              selectedContent = ContentType.knownWords;
-                            });
+                            context.read<WordViewModel>().changeContent(
+                              ContentType.knownWords,
+                            );
                           },
                           icon: Icon(Icons.check_circle),
                           iconSize: 30,
@@ -274,7 +141,8 @@ class _WordScreenState extends State<WordScreen> {
                       child: Column(
                         children: [
                           // ===== 상단 카드 =====
-                          if (selectedContent == ContentType.wordBook) ...[
+                          if (viewModel.selectedContent ==
+                              ContentType.wordBook) ...[
                             Card(
                               color: const Color(0xFFFFFDF7),
                               margin: const EdgeInsets.all(12),
@@ -289,10 +157,9 @@ class _WordScreenState extends State<WordScreen> {
                                         children: [
                                           PopupMenuButton<int>(
                                             onSelected: (value) {
-                                              setState(() {
-                                                selectedHskLevel = value;
-                                                selectedPage = 1;
-                                              });
+                                              context
+                                                  .read<WordViewModel>()
+                                                  .changeHskLevel(value);
                                             },
                                             itemBuilder: (context) {
                                               return List.generate(
@@ -307,7 +174,7 @@ class _WordScreenState extends State<WordScreen> {
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
                                                 Text(
-                                                  "HSK $selectedHskLevel",
+                                                  "HSK ${viewModel.selectedHskLevel}",
                                                   style: const TextStyle(
                                                     fontSize: 20,
                                                     fontWeight: FontWeight.bold,
@@ -323,10 +190,9 @@ class _WordScreenState extends State<WordScreen> {
                                           const Spacer(),
                                           PopupMenuButton<WordFilter>(
                                             onSelected: (value) {
-                                              setState(() {
-                                                selectedFilter = value;
-                                                selectedPage = 1;
-                                              });
+                                              context
+                                                  .read<WordViewModel>()
+                                                  .changeFilter(value);
                                             },
                                             itemBuilder: (context) => const [
                                               PopupMenuItem(
@@ -344,7 +210,8 @@ class _WordScreenState extends State<WordScreen> {
                                             ],
                                             child: Row(
                                               children: [
-                                                Text(switch (selectedFilter) {
+                                                Text(switch (viewModel
+                                                    .selectedFilter) {
                                                   WordFilter.all => "전체",
                                                   WordFilter.known => "암기",
                                                   WordFilter.unknown => "미암기",
@@ -363,25 +230,24 @@ class _WordScreenState extends State<WordScreen> {
                                     // ===== 접기/펼치기 영역 =====
                                     InkWell(
                                       onTap: () {
-                                        setState(() {
-                                          isHeaderExpanded = !isHeaderExpanded;
-                                        });
+                                        context
+                                            .read<WordViewModel>()
+                                            .toggleHeader();
                                       },
                                       child: Container(
                                         width: double.infinity,
                                         padding: const EdgeInsets.only(top: 20),
                                         child: Column(
                                           children: [
-                                            if (isHeaderExpanded) ...[
+                                            if (viewModel.isHeaderExpanded) ...[
                                               // const Text(
                                               //   "🐼",
                                               //   style: TextStyle(fontSize: 60),
                                               // ),
-
                                               const SizedBox(height: 8),
 
                                               Text(
-                                                "해당 레벨 암기 :  $overallKnownCount / $overallTotalCount",
+                                                "해당 레벨 암기 :  ${viewModel.overallKnownCount} / ${overallTotalCount}",
                                               ),
 
                                               const SizedBox(height: 12),
@@ -389,27 +255,29 @@ class _WordScreenState extends State<WordScreen> {
                                               LinearProgressIndicator(
                                                 value: overallTotalCount == 0
                                                     ? 0
-                                                    : overallKnownCount /
+                                                    : viewModel
+                                                              .overallKnownCount /
                                                           overallTotalCount,
                                               ),
 
                                               const SizedBox(height: 12),
 
                                               Text(
-                                                "페이지 암기 : $currentPageKnownCount / $currentPageTotalCount",
+                                                "페이지 암기 : ${viewModel.currentPageKnownCount} / ${currentPageTotalCount}",
                                               ),
 
                                               LinearProgressIndicator(
                                                 value:
                                                     currentPageTotalCount == 0
                                                     ? 0
-                                                    : currentPageKnownCount /
+                                                    : viewModel
+                                                              .currentPageKnownCount /
                                                           currentPageTotalCount,
                                               ),
                                             ],
 
                                             Icon(
-                                              isHeaderExpanded
+                                              viewModel.isHeaderExpanded
                                                   ? Icons.keyboard_arrow_up
                                                   : Icons.keyboard_arrow_down,
                                             ),
@@ -431,11 +299,11 @@ class _WordScreenState extends State<WordScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   IconButton(
-                                    onPressed: selectedPage > 1
+                                    onPressed: viewModel.selectedPage > 1
                                         ? () {
-                                            setState(() {
-                                              selectedPage--;
-                                            });
+                                            context
+                                                .read<WordViewModel>()
+                                                .prevPage();
                                           }
                                         : null,
                                     icon: const Icon(Icons.chevron_left),
@@ -449,16 +317,14 @@ class _WordScreenState extends State<WordScreen> {
                                       child: InkWell(
                                         borderRadius: BorderRadius.circular(20),
                                         onTap: () {
-                                          setState(() {
-                                            selectedPage = i;
-                                          });
+                                            viewModel.changePage(i);
                                         },
                                         child: Container(
                                           width: 36,
                                           height: 36,
                                           alignment: Alignment.center,
                                           decoration: BoxDecoration(
-                                            color: selectedPage == i
+                                            color: viewModel.selectedPage == i
                                                 ? Theme.of(
                                                     context,
                                                   ).colorScheme.primary
@@ -468,7 +334,7 @@ class _WordScreenState extends State<WordScreen> {
                                           child: Text(
                                             "$i",
                                             style: TextStyle(
-                                              color: selectedPage == i
+                                              color: viewModel.selectedPage == i
                                                   ? Colors.white
                                                   : Colors.black,
                                               fontWeight: FontWeight.bold,
@@ -479,11 +345,13 @@ class _WordScreenState extends State<WordScreen> {
                                     ),
 
                                   IconButton(
-                                    onPressed: selectedPage < totalPages
+                                    onPressed:
+                                        viewModel.selectedPage <
+                                            viewModel.totalPages
                                         ? () {
-                                            setState(() {
-                                              selectedPage++;
-                                            });
+                                            context
+                                                .read<WordViewModel>()
+                                                .nextPage();
                                           }
                                         : null,
                                     icon: const Icon(Icons.chevron_right),
@@ -497,17 +365,11 @@ class _WordScreenState extends State<WordScreen> {
                           // ===== 단어 목록 =====
                           Expanded(
                             child: ListView.builder(
-                              itemCount: words.length,
+                              itemCount: viewModel.words.length,
                               itemBuilder: (context, index) {
-                                final word = words[index];
+                                final word = viewModel.words[index];
 
-                                final statusData = wordStatusBox.get(
-                                  word.simplified,
-                                );
-
-                                final status = statusData != null
-                                    ? WordStatus.fromJson(statusData)
-                                    : WordStatus(simplified: word.simplified);
+                                final status = viewModel.getStatus(word);
 
                                 return Card(
                                   color: const Color(0xFFFFFDF7),
@@ -519,7 +381,8 @@ class _WordScreenState extends State<WordScreen> {
                                       children: [
                                         Text(word.pinyin),
                                         Text(
-                                          selectedHskLevelMeanings[word
+                                          viewModel
+                                                  .selectedHskLevelMeanings[word
                                                       .simplified]
                                                   ?.join(", ") ??
                                               word.meanings,
@@ -533,14 +396,7 @@ class _WordScreenState extends State<WordScreen> {
                                             : Icons.circle_outlined,
                                       ),
                                       onPressed: () async {
-                                        status.isKnown = !status.isKnown;
-
-                                        await wordStatusBox.put(
-                                          status.simplified,
-                                          status.toJson(),
-                                        );
-
-                                        setState(() {});
+                                        viewModel.toggleKnown(word);
                                       },
                                     ),
                                   ),
