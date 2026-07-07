@@ -10,6 +10,11 @@ AI 가 실수하는 것처럼, 상대방이 너무 어려운 단어,문장을 �
 본 프로젝트는 HSK1 수준에 맞춘 대화 흐름과 AI를 결합하여
 AI를 제어하여 초급학습자를 위한 챗봇으로 활용할수 있습니다.
 
+<img width="250" height="360" alt="wordbook" src="https://github.com/user-attachments/assets/f7c13a51-3e93-4d5f-969c-ab0ddbc02c38" />
+
+## 프로젝트 구조
+MVVM(Model-View-ViewModel) + Repository(데이터 접근) 적용
+
 ## Tech Stack
 
 - Flutter
@@ -18,8 +23,8 @@ AI를 제어하여 초급학습자를 위한 챗봇으로 활용할수 있습니
 - Gemini API
 - Ollama
 - JSON
+- Kotlin
 
-<img width="250" height="360" alt="wordbook" src="https://github.com/user-attachments/assets/f7c13a51-3e93-4d5f-969c-ab0ddbc02c38" />
 
 
 ## 특징
