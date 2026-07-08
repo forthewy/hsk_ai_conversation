@@ -10,11 +10,12 @@ AI 가 실수하는 것처럼, 상대방이 너무 어려운 단어,문장을 �
 본 프로젝트는 HSK1 수준에 맞춘 대화 흐름과 AI를 결합하여
 AI를 제어하여 초급학습자를 위한 챗봇으로 활용할수 있습니다.
 
-<img width="250" height="360" alt="wordbook" src="https://github.com/user-attachments/assets/f7c13a51-3e93-4d5f-969c-ab0ddbc02c38" />
+<img width="250" height="360" alt="wordbook" src="https://github.com/user-attachments/assets/4e959dce-969d-43d9-8cf6-30a48edf3830" />
 
 ## 프로젝트 구조
-MVVM(Model-View-ViewModel) + Repository(데이터 접근) 적용
-
+- MVVM(Model-View-ViewModel) + Repository(데이터 접근) 적용
+- Hive
+  
 ## Tech Stack
 
 - Flutter
@@ -23,7 +24,6 @@ MVVM(Model-View-ViewModel) + Repository(데이터 접근) 적용
 - Gemini API
 - Ollama
 - JSON
-- Kotlin
 
 
 
@@ -38,7 +38,9 @@ MVVM(Model-View-ViewModel) + Repository(데이터 접근) 적용
 - Gemini / Ollama 지원
   - AI Provider를 통해 Gemini와 Ollama를 동일한 인터페이스로 사용할 수 있도록 설계하여 개발 테스트시 드는 AI 비용 축소. 
 - 단어장 시스템
-  - HSK 레벨별 단어를 확인하고 암기 여부를 관리할 수 있습니다.
+  - HSK 레벨별 단어를 확인
+  - 암기 여부를 관리
+  - 검색 기능 구현
 
 ## AI 호출 및 답변 생성 구조
 
