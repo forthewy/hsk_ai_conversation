@@ -1,1 +1,4 @@
-enum ContentType { wordBook, knownWords, favoriteWords }
+enum ContentType {
+  wordBook,
+  knownWords,
+}

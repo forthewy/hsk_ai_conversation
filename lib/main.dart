@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:hskchat/screens/start_screen.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:hskchat/screens/word_screen.dart';
 import 'package:hskchat/viewmodels/word_view_model.dart';
 import 'package:provider/provider.dart';
 
