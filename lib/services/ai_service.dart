@@ -94,13 +94,8 @@ class AiService {
       final response = await model.generateContent([Content.text(prompt)]);
       final usage = response.usageMetadata;
 
-      debugPrint("prompt: ${usage?.promptTokenCount}");
-      debugPrint("candidate: ${usage?.candidatesTokenCount}");
-      debugPrint("total: ${usage?.totalTokenCount}");
       final c = response.candidates.first;
 
-      debugPrint("finish: ${c.finishReason}");
-      debugPrint("content: ${c.content.parts}");
       return response.text ?? '응답없음';
     } catch (e) {
       debugPrint('Gemini 오류: $e');
@@ -132,6 +127,8 @@ class AiService {
         hskLevel: hskLevel,
         state:state,
       );
+
+      print(prompt);
       final watch = Stopwatch()..start();
       final response = await http.post(
         Uri.parse('http://localhost:11434/api/generate'),
@@ -146,6 +143,7 @@ class AiService {
           },
         }),
       );
+
           watch.stop();
           debugPrint("HTTP POST: ${watch.elapsedMilliseconds} ms");
 

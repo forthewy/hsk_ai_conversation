@@ -5,14 +5,12 @@ final npcMap = <String, NPCData>{
     objectId: "student",
     name: "小明",
     place: PlaceType.school,
-    greeting: "你好！",
+    greeting: "你好！ (안녕!)",
     //greeting: "嗨！" 하이
     role: "학교에 다니는 학생",
 
     personalities: [
       "친근하게 말한다",
-      "질문하는 것을 좋아한다",
-      "같은 질문을 반복하지 않는다.",
     ],
 
     topics: [
@@ -26,14 +24,13 @@ final npcMap = <String, NPCData>{
 
   "teacher": NPCData(
     objectId: "teacher",
-    name: "선생님",
-    place: PlaceType.street,
+    name: "王老师",
+    place: PlaceType.school,
     greeting: "你好！",
-    role: "한국어가 유창한 선생님",
+    role: "학교 선생님",
 
     personalities: [
-      "친절하게 설명한다",
-      "짧게 답변한다",
+      "친절하다",
     ],
 
     topics: [

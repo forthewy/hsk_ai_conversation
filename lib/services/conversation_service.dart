@@ -89,7 +89,7 @@ class ConversationService {
     );
 
     // NPC에게 보낼 메시지만 전처리
-    final npcMessage = _preprocessPlayerMessage(playerMessage);
+    final processedPlayerMessage = _preprocessPlayerMessage(playerMessage);
     final nextState = stateService.nextState(
       currentState: state,
       playerMemory: playerMemory,
@@ -101,7 +101,7 @@ class ConversationService {
 
     final reply = await aiService.npcChat(
       npc: npcData,
-      playerMessage: npcMessage,
+      playerMessage: processedPlayerMessage,
       playerMemory: gameRepository.getPlayerMemory(),
       recentMessages: conversationRepository.getRecentMessages(
         npcData.objectId,

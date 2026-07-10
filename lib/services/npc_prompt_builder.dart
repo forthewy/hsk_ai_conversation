@@ -4,7 +4,6 @@ import '../models/npc_data.dart';
 import '../models/npc_state.dart';
 
 class NpcPromptBuilder {
-
   String buildHskPrompt(HskData hsk) {
     return '''
 사용자는 HSK${hsk.level} 학습자입니다.
@@ -25,28 +24,14 @@ class NpcPromptBuilder {
   }
 
   String buildIntroductionStatePrompt(Map<String, dynamic> playerMemory) {
-    final todos = <String>[];
-
     if (!playerMemory.containsKey("name")) {
-      todos.add("- 이름 알아내기");
+      return "플레이어에게 이름을 물어보세요.";
     }
 
     if (!playerMemory.containsKey("preference")) {
-      todos.add("- 좋아하는 것 알아내기");
+      return "현재 목표는 좋아하는 것을 묻는 것입니다. 절대로 이름을 묻지 마세요. 이번 응답에서는 좋아하는 것만 물어보세요.";
     }
-
-    final todoText = todos.isEmpty ? "- 없음" : todos.join("\n");
-
-    return '''
-      현재 상태: Introduction
-      
-      목표:
-      $todoText
-      
-      규칙:
-      - 인사(예: 你好) 하지 않는다.
-      - 자연스럽게 대화한다.
-      ''';
+    return buildQuestStatePrompt();
   }
 
   String buildQuestStatePrompt() {
@@ -76,7 +61,6 @@ Introduction은 이미 끝났습니다.
 ''';
   }
 
-
   String buildQuestCompletePrompt() {
     return '''
 현재 상태: QuestComplete
@@ -90,7 +74,6 @@ Introduction은 이미 끝났습니다.
 - 새로운 퀘스트는 주지 않는다.
 ''';
   }
-
 
   String buildFreeTalkStatePrompt() {
     return '''
@@ -106,18 +89,86 @@ Introduction은 이미 끝났습니다.
 ''';
   }
 
-  String buildNpcProfile(NPCData npc) {
+  String buildRolePrompt(NPCData npc) {
     return '''
     당신은 ${npc.name}입니다.
     
     성격:
     ${npc.personalities.map((e) => "- $e").join("\n")}
-    
-    가능한 대화 주제:
-    ${npc.topics.map((e) => "- $e").join("\n")}
     ''';
   }
 
+  String buildMustPrompt() {
+    return '''
+    당신은 중국어로 말합니다.
+    발음을 출력하지 마세요.
+    반드시 괄호 안에 한국어 번역을 포함하세요.''';
+  }
+
+  String buildProhibitionPrompt() {
+    return '''
+    
+    ''';
+  }
+
+  String buildPriorityPrompt() {
+    return '''가장 중요한 목표는 현재 상태(State)를 수행하는 것입니다.''';
+  }
+
+  String buildMemoryPrompt(NPCData npc, Map<String, dynamic> playerMemory) {
+    final npcMemoryText = npc.memories.isEmpty
+        ? '아직 기억한 내용 없음'
+        : npc.memories.join('\n');
+
+    final playerMemoryText = playerMemory.entries
+        .where((e) => e.value != null)
+        .map((e) => '${e.key}: ${e.value}')
+        .join('\n');
+    return '''
+      플레이어에 대한 전역 기억:
+      ${playerMemoryText.isEmpty ? '아직 기억 없음' : playerMemoryText}
+      
+      이 NPC만의 기억:
+      $npcMemoryText
+      
+      이미 기억한 정보를 다시 질문하지 마세요.
+      ''';
+  }
+
+  String buildRecentPrompt(List<Map<String, String>> recentMessages) {
+    final recentText = recentMessages.isEmpty
+        ? '아직 최근 대화 없음'
+        : recentMessages.map((m) => '${m['role']}: ${m['content']}').join('\n');
+    return '''
+      최근 대화:
+      $recentText
+      
+      이미 한 말을 또 하지 마세요
+      ''';
+  }
+
+  String buildWordPrompt(List<String> sampledWords) {
+    return '''
+    사용자가 이미 아는 단어:
+    ${sampledWords.join(', ')}
+    
+    위 단어는 참고용입니다.
+    대화 내용과 자연스럽게 어울릴 때만 사용하세요.
+    억지로 사용하지 마세요.
+    ''';
+  }
+
+  String buildOutputPrompt() {
+    return '''
+        출력은 아래와 같은 형식입니다.
+        
+        잘못된 예
+        你叫什么名字？
+        
+        올바른 예
+        你叫什么名字？ (이름이 뭐야?)
+        ''';
+  }
 
   String buildNpcPrompt({
     required NPCData npc,
@@ -128,65 +179,45 @@ Introduction은 이미 끝났습니다.
     required int hskLevel,
     required NpcState state,
   }) {
-    final npcMemoryText = npc.memories.isEmpty
-        ? '아직 기억한 내용 없음'
-        : npc.memories.join('\n');
-
-    final playerMemoryText = playerMemory.entries
-        .where((e) => e.value != null)
-        .map((e) => '${e.key}: ${e.value}')
-        .join('\n');
-
-    final recentText = recentMessages.isEmpty
-        ? '아직 최근 대화 없음'
-        : recentMessages
-        .map((m) => '${m['role']}: ${m['content']}')
-        .join('\n');
-
     final hsk = hskMap[hskLevel]!;
 
-    final statePrompt = buildStatePrompt(state, playerMemory);
-
     return '''
-    ${buildNpcProfile(npc)}
+    ===== ROLE =====
+    ${buildRolePrompt(npc)}
     
-    $statePrompt
+    ===== MUST =====
+    ${buildMustPrompt()}
     
-    플레이어에 대한 전역 기억:
-    ${playerMemoryText.isEmpty ? '아직 기억 없음' : playerMemoryText}
+    ===== PROHIBITION =====
+    ${buildProhibitionPrompt()}
     
-    이 NPC만의 기억:
-    $npcMemoryText
+    ===== STATE =====
+    ${buildStatePrompt(state, playerMemory)}
     
-    최근 대화:
-    $recentText
+    ===== PRIORITY =====
+    ${buildPriorityPrompt()}
     
+    ===== MEMORY =====
+    ${buildMemoryPrompt(npc, playerMemory)}
+    
+
+    
+    ===== HSK =====
     ${buildHskPrompt(hsk)}
     
-    사용자가 이미 아는 단어:
-    ${sampledWords.join(', ')}
+    ===== WORDS =====
+    ${buildWordPrompt(sampledWords)}
     
-    당신은 중국어로 말합니다.
-    위 단어는 참고용입니다.
-    대화 내용과 자연스럽게 어울릴 때만 사용하세요.
-    억지로 사용하지 마세요.
-    이미 기억에 있는 정보를 다시 질문하지 마세요.
-    플레이어의 한국어 문장을 중국어로 번역하려고 하지 마세요.
-    플레이어의 의도만 이해한 후 자연스럽게 대답하세요.
-    발음을 출력하지 마세요.
-    출력은 아래와 같은 형식입니다.
-    반드시 괄호 안에 한국어 번역을 포함하세요.
+    ===== OUTPUT =====
+    ${buildOutputPrompt()}
     
-    잘못된 예
-    你好！
-    
-    올바른 예
-    你好！ （안녕!）
-    
-    플레이어:
+    ===== PLAYER =====
     $playerMessage
     
-    NPC:
+    ===== NPC =====
     ''';
   }
 }
+//    최근 메세지 내역 삭제
+//    ===== RECENT =====
+//     ${buildRecentPrompt(recentMessages)}
