@@ -62,9 +62,33 @@ class _WordScreenState extends State<WordScreen> {
                           vertical: 20,
                         ),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xff8B5A2B),
+                          ),
                         ),
+
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xffC8A46D),
+                            width: 2,
+                          ),
+                        ),
+
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xff8B5A2B),
+                            width: 2,
+                          ),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Color(0xff8B5A2B),
+                        ),
+
+                        hintText: "단어 검색",
                       ),
                       controller: wordSearchController,
                       onChanged: viewModel.changeSearchKeyword,
@@ -74,7 +98,7 @@ class _WordScreenState extends State<WordScreen> {
                     onPressed: () {
                       wordSearchController.clear();
                     },
-                    icon: Icon(Icons.cancel),
+                    icon: Icon(Icons.close,),
                   ),
                 ],
               ),
@@ -192,6 +216,8 @@ class _WordScreenState extends State<WordScreen> {
                                                 child: Row(
                                                   children: [
                                                     PopupMenuButton<int>(
+                                                      color: const Color(0xFFFFF8EC),
+                                                      surfaceTintColor: Colors.transparent,
                                                       onSelected: (value) {
                                                         context
                                                             .read<
@@ -203,15 +229,32 @@ class _WordScreenState extends State<WordScreen> {
                                                       },
                                                       itemBuilder: (context) {
                                                         return List.generate(
-                                                          7,
-                                                          (i) => PopupMenuItem(
-                                                            value: i + 1,
-                                                            child: Text(
-                                                              "HSK ${i + 1}",
+                                                          7, (i) {
+                                                          final level = i + 1;
+
+                                                          return PopupMenuItem(
+                                                            value: level,
+                                                            child: Row(
+                                                              children: [
+                                                                Expanded(
+                                                                  child: Text(
+                                                                    "HSK $level",
+                                                                    style: const TextStyle(
+                                                                    ),
+                                                                  ),
+                                                                ),
+
+                                                                if (viewModel.selectedHskLevel == level)
+                                                                  const Icon(
+                                                                    Icons.check,
+                                                                    size: 18,
+                                                                  ),
+                                                              ],
                                                             ),
-                                                          ),
-                                                        );
+                                                          );
+                                                        });
                                                       },
+
                                                       child: Row(
                                                         mainAxisSize:
                                                             MainAxisSize.min,
@@ -230,18 +273,19 @@ class _WordScreenState extends State<WordScreen> {
                                                             Icons
                                                                 .arrow_drop_down,
                                                           ),
-                                                          const Text("레벨 선택"),
                                                         ],
                                                       ),
                                                     ),
                                                     const Spacer(),
                                                     PopupMenuButton<WordFilter>(
+                                                      color: const Color(0xFFFFF8EC),
+                                                      surfaceTintColor: Colors.transparent,
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius: BorderRadius.circular(8),
+                                                      ),
                                                       onSelected: (value) {
                                                         context
-                                                            .read<
-                                                              WordViewModel
-                                                            >()
-                                                            .changeFilter(
+                                                            .read<WordViewModel>().changeFilter(
                                                               value,
                                                             );
                                                       },
@@ -267,8 +311,8 @@ class _WordScreenState extends State<WordScreen> {
                                                           ],
                                                       child: Row(
                                                         children: [
-                                                          Text(switch (viewModel
-                                                              .selectedFilter) {
+                                                          Text(
+                                                              switch (viewModel.selectedFilter) {
                                                             WordFilter.all =>
                                                               "전체",
                                                             WordFilter.known =>
@@ -276,12 +320,15 @@ class _WordScreenState extends State<WordScreen> {
                                                             WordFilter
                                                                 .unknown =>
                                                               "미암기",
-                                                          }),
-                                                          const Icon(
-                                                            Icons
-                                                                .filter_alt_sharp,
+                                                              },
+                                                            style: const TextStyle(
+                                                            fontWeight: FontWeight.bold,
+                                                                  ),
                                                           ),
-                                                          const Text(" 필터"),
+                                                          const SizedBox(width: 4),
+                                                          const Icon(
+                                                            Icons.arrow_drop_down,
+                                                          ),
                                                         ],
                                                       ),
                                                     ),
@@ -325,6 +372,13 @@ class _WordScreenState extends State<WordScreen> {
                                                         LinearProgressIndicator(
                                                           value: viewModel
                                                               .overallProgress,
+                                                          backgroundColor: const Color(0xffE5D8C0),
+
+                                                          color: const Color(0xff8B5A2B),
+
+                                                          minHeight: 10,
+
+                                                          borderRadius: BorderRadius.circular(8),
                                                         ),
 
                                                         const SizedBox(
@@ -332,12 +386,19 @@ class _WordScreenState extends State<WordScreen> {
                                                         ),
 
                                                         Text(
-                                                          "페이지 암기 : ${viewModel.currentPageKnownCount} / ${viewModel.currentPageTotalCount}",
+                                                          "현재 페이지 암기 : ${viewModel.currentPageKnownCount} / ${viewModel.currentPageTotalCount}",
                                                         ),
 
                                                         LinearProgressIndicator(
                                                           value: viewModel
                                                               .currentProgress,
+                                                          backgroundColor: const Color(0xffE5D8C0),
+
+                                                          color: const Color(0xff8B5A2B),
+
+                                                          minHeight: 10,
+
+                                                          borderRadius: BorderRadius.circular(8),
                                                         ),
                                                       ],
 
@@ -378,6 +439,7 @@ class _WordScreenState extends State<WordScreen> {
                                                 : null,
                                             icon: const Icon(
                                               Icons.chevron_left,
+                                              color: Color(0xff8B5A2B),
                                             ),
                                           ),
 
@@ -403,9 +465,7 @@ class _WordScreenState extends State<WordScreen> {
                                                   alignment: Alignment.center,
                                                   decoration: BoxDecoration(
                                                     color: selectedPage == i
-                                                        ? Theme.of(
-                                                            context,
-                                                          ).colorScheme.primary
+                                                        ? const Color(0xff8B5A2B)
                                                         : Colors.transparent,
                                                     shape: BoxShape.circle,
                                                   ),
@@ -435,6 +495,7 @@ class _WordScreenState extends State<WordScreen> {
                                                 : null,
                                             icon: const Icon(
                                               Icons.chevron_right,
+                                              color: Color(0xff8B5A2B),
                                             ),
                                           ),
                                         ],
@@ -448,18 +509,41 @@ class _WordScreenState extends State<WordScreen> {
                                         itemCount: viewModel.words.length,
                                         itemBuilder: (context, index) {
                                           final word = viewModel.words[index];
-
+                                          // 단어 카드
                                           return Card(
                                             color: const Color(0xFFFFFDF7),
+                                            margin: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 6,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
                                             child: ListTile(
-                                              title: Text(word.simplified),
+                                              title: Text(
+                                                word.simplified,
+                                                style: const TextStyle(
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
                                               subtitle: Column(
                                                 crossAxisAlignment:
                                                     CrossAxisAlignment.start,
                                                 children: [
-                                                  Text(word.pinyin),
+                                                  Text(
+                                                    word.pinyin,
+                                                    style: const TextStyle(
+                                                      color: Colors.grey,
+                                                      fontSize: 13,
+                                                      fontStyle: FontStyle.italic,
+                                                    ),
+                                                  ),
                                                   Text(
                                                     viewModel.getMeaning(word),
+                                                    style: const TextStyle(
+                                                      fontSize: 16,
+                                                    ),
                                                   ),
                                                 ],
                                               ),
@@ -468,6 +552,9 @@ class _WordScreenState extends State<WordScreen> {
                                                   viewModel.isKnown(word)
                                                       ? Icons.check_circle
                                                       : Icons.circle_outlined,
+                                                  color: viewModel.isKnown(word)
+                                                      ? const Color(0xff8B5A2B)
+                                                      : Colors.grey,
                                                 ),
                                                 onPressed: () async {
                                                   viewModel.toggleKnown(word);
