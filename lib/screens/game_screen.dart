@@ -63,7 +63,6 @@ class _GameScreenState extends State<GameScreen> {
     gameService = GameService();
   }
 
-
   Future<void> sendNpcMessage() async {
     final text = dialogController.text.trim();
 
@@ -74,17 +73,17 @@ class _GameScreenState extends State<GameScreen> {
     viewModel.setNpcLoading(true);
 
     try {
-      final reply = await conversationService.sendMessage(
+      final result = await conversationService.sendMessage(
         npcData: npcData,
         playerMessage: text,
         sampledWords: sampledWords,
         hskLevel: viewModel.playerHskLevel,
-        state: viewModel.currentState,
+        state: viewModel.getNpcState(npcData.objectId),
       );
 
       viewModel.addMessage(role: 'player', content: text);
-      viewModel.addMessage(role: 'npc', content: reply);
-
+      viewModel.addMessage(role: 'npc', content: result.reply);
+      viewModel.setNpcState(npcData.objectId, result.state);
       dialogController.clear();
     } finally {
       viewModel.setNpcLoading(false);
@@ -136,6 +135,7 @@ class _GameScreenState extends State<GameScreen> {
         return '${interactableObject!.name} 읽기';
     }
   }
+
   void interact() {
     if (interactableObject == null) return;
 
@@ -161,21 +161,42 @@ class _GameScreenState extends State<GameScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(building.name),
-
+          backgroundColor: const Color(0xFFF7EED8),
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          title: Center(
+            child: Text(
+              "${building.name}",
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xff5A3416),
+                fontSize: 20,
+              ),
+            ),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 width: 200,
                 height: 120,
-                color: Colors.brown,
+                decoration: BoxDecoration(
+                  color: const Color(0xffD8C29D),
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 child: const Center(child: Text('건물 이미지')),
               ),
-
               const SizedBox(height: 12),
-
-              const Text('이곳에서 무엇을 할까?'),
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  "누구와 대화할까요?",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xff5A3416),
+                  ),
+                ),
+              ),
             ],
           ),
           actions: [
@@ -187,8 +208,11 @@ class _GameScreenState extends State<GameScreen> {
                     .map((npc) {
                       return ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
+                          backgroundColor: Color(0xff8B5A2B),
                           foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         onPressed: () {
                           Navigator.pop(context);
@@ -204,7 +228,7 @@ class _GameScreenState extends State<GameScreen> {
                           );
                         },
                         //  대화 버튼
-                        child: Text(npc.name + "(" + npc.role + ")"),
+                        child: Text("▶ ${npc.name} (${npc.role})"),
                       );
                     })
                     .toList(),
@@ -213,8 +237,11 @@ class _GameScreenState extends State<GameScreen> {
             Divider(),
             TextButton(
               style: TextButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: const Color(0xffB87A4B),
                 foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
               onPressed: () {
                 Navigator.pop(context);
@@ -263,6 +290,13 @@ class _GameScreenState extends State<GameScreen> {
                 top: 20,
                 right: 20,
                 child: PopupMenuButton<int>(
+                  color: Color(0xFFF7EED8),
+                  shape: const RoundedRectangleBorder(
+                    side: BorderSide(
+                      color: Color(0xff8B5A2B),
+                      width: 1.0, // 선 두께 (생략 가능)
+                    ),
+                  ),
                   onSelected: (value) {
                     viewModel.setHskLevel(value);
                   },
@@ -297,10 +331,19 @@ class _GameScreenState extends State<GameScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
+                      color: const Color(0xFFF7EED8),
+                      border: Border.all(
+                        color: const Color(0xff8B5A2B),
+                        width: 2,
+                      ),
                     ),
-                    child: Text('HSK${viewModel.playerHskLevel} ▼'),
+                    child: Text(
+                      'HSK${viewModel.playerHskLevel} ▼',
+                      style: const TextStyle(
+                        color: Color(0xff5A3416),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -314,6 +357,17 @@ class _GameScreenState extends State<GameScreen> {
                   child: ElevatedButton(
                     onPressed: interact,
                     child: Text(getInteractionText()),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xff8B5A2B),
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -325,7 +379,7 @@ class _GameScreenState extends State<GameScreen> {
 
   // 맵
   Widget buildMap() {
-    return Container(color: Colors.green.shade700);
+    return Container(color: Color(0xff88B56A));
   }
 
   Widget buildBuildingObject(GameObject obj) {
@@ -404,7 +458,7 @@ class _GameScreenState extends State<GameScreen> {
     super.dispose();
   }
 
-  // 대화
+  // 대화창 위젯
   Widget buildDialog() {
     final npcData = npcMap[viewModel.currentNpc!.npcDataId]!;
     final lastMessages = viewModel.lastMessages;
@@ -418,8 +472,9 @@ class _GameScreenState extends State<GameScreen> {
         height: 300,
 
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          color: Color(0xFFF7EED8),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Color(0xff8B5A2B), width: 2),
         ),
 
         child: Column(
@@ -429,7 +484,7 @@ class _GameScreenState extends State<GameScreen> {
             Row(
               children: [
                 Text(
-                  viewModel.currentNpc!.name,
+                  "【${viewModel.currentNpc!.name}】",
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -443,12 +498,13 @@ class _GameScreenState extends State<GameScreen> {
                     viewModel.closeDialog();
                     dialogController.clear();
                   },
+                  color: Color(0xffB87A4B),
                   icon: const Icon(Icons.close),
                 ),
               ],
             ),
 
-            const Divider(),
+            Divider(color: Color(0xff8B5A2B), thickness: 1.5),
             // 대화
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -468,7 +524,6 @@ class _GameScreenState extends State<GameScreen> {
                   }),
               ],
             ),
-            //Text(dialogText, style: const TextStyle(fontSize: 20)), // 대화 내용
             const Spacer(),
             Row(
               children: [
@@ -478,21 +533,42 @@ class _GameScreenState extends State<GameScreen> {
                     decoration: InputDecoration(
                       hintText: "메시지를 입력하세요",
                       filled: true,
-                      fillColor: Colors.grey.shade100,
+                      fillColor: Color(0xFFFFFAF2),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 12,
                       ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        borderSide: BorderSide.none,
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(color: Color(0xffC8A46D)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide(
+                          color: Color(0xff8B5A2B),
+                          width: 2,
+                        ),
                       ),
                     ),
                   ),
                 ),
-                ElevatedButton(
-                  onPressed: viewModel.isNpcLoading ? null : sendNpcMessage,
-                  child: Text(viewModel.isNpcLoading ? '응답 중...' : '입력'),
+                const SizedBox(width: 8),
+                SizedBox(
+                  height: 45,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xff8B5A2B),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: viewModel.isNpcLoading ? null : sendNpcMessage,
+                    child: Text(viewModel.isNpcLoading ? '응답 중...' : '말하기'),
+                  ),
                 ),
               ],
             ),

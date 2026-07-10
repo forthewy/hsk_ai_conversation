@@ -145,11 +145,6 @@ Introduction은 이미 끝났습니다.
 
     final hsk = hskMap[hskLevel]!;
 
-    if (playerMemory.containsKey("preference") &&
-        playerMemory.containsKey("name")) {
-      state = NpcState.quest;
-    }
-
     final statePrompt = buildStatePrompt(state, playerMemory);
 
     return '''

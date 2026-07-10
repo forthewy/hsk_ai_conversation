@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 
+import '../models/conversation_result.dart';
 import '../models/npc_data.dart';
 import '../repositories/conversation_repository.dart';
 import '../repositories/game_repository.dart';
 import 'ai_service.dart';
 import 'memory_extractor_service.dart';
 import '../models/npc_state.dart';
+import 'npc_state_service.dart';
 
 class ConversationService {
   final AiService aiService;
   final GameRepository gameRepository;
   final ConversationRepository conversationRepository;
   final MemoryExtractorService memoryExtractor;
+  final NpcStateService stateService = NpcStateService();
+
 
   ConversationService({
     required this.aiService,
@@ -67,7 +71,8 @@ class ConversationService {
     return copied.take(5).toList();
   }
 
-  Future<String> sendMessage({
+  // 플레이어 메세지에 npc 응답 받기 위한 메소드
+  Future<ConversationResult> sendMessage({
     required NPCData npcData,
     required String playerMessage,
     required List<String> sampledWords,
@@ -75,6 +80,7 @@ class ConversationService {
     required NpcState state,
   }) async {
     await _extractAndSaveMemory(text: playerMessage, npcData: npcData);
+    final playerMemory = gameRepository.getPlayerMemory();
 
     await conversationRepository.addRecentMessage(
       npcId: npcData.objectId,
@@ -84,6 +90,14 @@ class ConversationService {
 
     // NPC에게 보낼 메시지만 전처리
     final npcMessage = _preprocessPlayerMessage(playerMessage);
+    final nextState = stateService.nextState(
+      currentState: state,
+      playerMemory: playerMemory,
+    );
+
+    debugPrint("현재 상태 : $state");
+    debugPrint("playerMemory : $playerMemory");
+    debugPrint("다음 상태 : $nextState");
 
     final reply = await aiService.npcChat(
       npc: npcData,
@@ -94,7 +108,7 @@ class ConversationService {
       ),
       sampledWords: sampledWords,
       hskLevel: hskLevel,
-      state: state,
+      state: nextState,
     );
     debugPrint('5 npcChat 완료: $reply');
 
@@ -106,7 +120,10 @@ class ConversationService {
       content: reply,
     );
 
-    return reply;
+    return ConversationResult(
+      reply: reply,
+      state: nextState,
+    );
   }
 
   Future<void> _extractAndSaveMemory({
