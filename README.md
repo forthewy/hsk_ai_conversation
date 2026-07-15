@@ -1,14 +1,17 @@
 # HSK AI Chat
 
-HSK1 학습자를 위한 AI 기반 중국어 회화 학습 앱입니다.
+HSK 학습자를 위한 AI 기반 중국어 회화 학습 앱입니다.
 
 ## 프로젝트 목적
 
-초급 학습자는 실생활에서 배운것을 활용하기 어렵습니다. 
-AI 가 실수하는 것처럼, 상대방이 너무 어려운 단어,문장을 사용하거나 배운적 없는 단어,주제가 쏟아지기 때문입니다.
+초급 학습자는 실생활에서 배운 표현을 실제 대화에서 활용하기 어렵습니다.
 
-본 프로젝트는 HSK1 수준에 맞춘 대화 흐름과 AI를 결합하여
-AI를 제어하여 초급학습자를 위한 챗봇으로 활용할수 있습니다.
+기존 LLM은 학습 수준을 고려하지 않고 다양한 주제와 표현을 생성하기 때문에,
+초급 학습자가 지속적으로 대화를 이어가기 어려운 문제가 있습니다.
+
+본 프로젝트는 NPC와의 대화를 통해 중국어를 학습할 수 있도록
+Prompt Engineering, Conversation Memory, FSM(Finite State Machine)을 적용하여
+LLM의 대화 흐름을 제어하는 것을 목표로 개발했습니다.
 
 <img width="250" height="360" alt="wordbook" src="https://github.com/user-attachments/assets/4e959dce-969d-43d9-8cf6-30a48edf3830" />
 
@@ -28,22 +31,17 @@ AI를 제어하여 초급학습자를 위한 챗봇으로 활용할수 있습니
 
 
 ## 특징
-- HSK 레벨 선택
-- NPC 기반 회화 학습
-- FSM 기반 대화 시스템
-   - 대화 흐름의 일관성 및 LLM의 주제 이탈 방지
-- Prompt 기반 AI 제어
-  - Persona, State, Memory Prompt를 분리하여 관리
-  - 상황에 따라 필요한 Prompt를 조합하여 AI 동작 제어
-- Rule-based 입력 검증
-   - 사용자 입력을 규칙 기반으로 분석하여 첫 인사 등 공통 패턴은 AI 호출 없이 처리하고, 필요한 경우에만 LLM을 호출하도록 설계.
-   - 의문문에서는 정보를 저장하지 않음.
-- Gemini / Ollama 지원
-  - AI Provider를 통해 Gemini와 Ollama를 동일한 인터페이스로 사용할 수 있도록 설계하여 개발 테스트시 드는 AI 비용 축소. 
-- 단어장 시스템
-  - HSK 레벨별 단어를 확인
-  - 암기 여부를 관리
-  - 검색 기능 구현
+
+- NPC 기반 AI 회화
+- FSM(Finite State Machine) 기반 대화 제어
+- Prompt Engineering
+  - Persona Prompt
+  - State Prompt
+  - Memory Prompt
+- Conversation Memory
+- Rule-based Validation (Cheap Guardrail)
+- AI Provider 추상화 (Gemini / Ollama)
+- HSK 단어장
 
 ## AI 호출 및 답변 생성 구조
 
@@ -103,7 +101,27 @@ Prompt를
 - 중요 규칙을 강조하기 쉬워짐
 - Prompt 유지보수성 향상
 
+### 3. FSM 도입
+
+문제
+
+LLM이 대화 도중 의도하지 않은 주제로 벗어나거나
+같은 질문을 반복하는 문제가 있었습니다.
+
+해결
+
+NPC의 대화를 State 기반으로 관리하고
+상태별 목표가 달성되면 다음 State로 전이하도록 구현했습니다.
+
+효과
+
+- 대화 흐름 유지
+- 주제 이탈 감소
+- 학습 순서 제어
+
 ## 업데이트 계획
-- 음성 인식 추가 -> 실제 대화하는 느낌의 학습
+
+- 음성 인식(STT) 기반 회화
+- Embedding 및 Retrieval(RAG)을 활용한 Conversation Memory 검색
 
 - 
