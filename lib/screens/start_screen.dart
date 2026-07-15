@@ -11,7 +11,6 @@ class StartScreen extends StatefulWidget {
 }
 
 class _StartScreenState extends State<StartScreen> {
-
   int currentIndex = 0;
   final List<Widget> _screens = [
     //const ChatScreen(),
@@ -19,38 +18,52 @@ class _StartScreenState extends State<StartScreen> {
     const GameScreen(),
   ];
 
-
-  // void loadMessages() {
-  //   //ChatMessage = Hive.box('chat_box');
-  //   final AIMessages = ChatMessage.toMap().entries.map().where('role') == 'AI';
-  // }
   @override
   Widget build(BuildContext context) {
     // final AIMesagge =
     return Scaffold(
-      backgroundColor: Color(0xFFB68B74),
+      backgroundColor: Color(0xFFF7EED8),
       body: _screens[currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: currentIndex, // 현재 활성화된 아이콘
-        onTap: (index) {
-          setState(() {
-            currentIndex = index;
-          });
-        },
-        items: const [
-          //BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
-          BottomNavigationBarItem(icon: Icon(Icons.sticky_note_2_outlined), label: '단어장'),
-          BottomNavigationBarItem(icon: Icon(Icons.play_circle_outline), label: '학습시작'),
-          //BottomNavigationBarItem(icon: Icon(Icons.settings), label: '채팅'),
-        ],
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: Color(0xff8B5A2B), width: 2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 4,
+              offset: Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            backgroundColor: const Color(0xFFF7EED8),
+            selectedItemColor: const Color(0xff8B5A2B),
+            unselectedItemColor: Colors.grey,
+            selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+            currentIndex: currentIndex,
+            // 현재 활성화된 아이콘
+            onTap: (index) {
+              setState(() {
+                currentIndex = index;
+              });
+            },
+            items: const [
+              //BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.menu_book),
+                label: '단어장',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.play_circle_outline),
+                label: '학습',
+              ),
+              //BottomNavigationBarItem(icon: Icon(Icons.settings), label: '채팅'),
+            ],
+          ),
+        ),
       ),
-
-      // floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      //
-      // floatingActionButton: FloatingActionButton(
-      //   onPressed: () {},
-      //   child: const Icon(Icons.add),
-      // ),
     );
   }
 }

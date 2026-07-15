@@ -11,6 +11,8 @@ void main() async {
   await Hive.openBox('npc_memory_box');
   await Hive.openBox('player_memory_box');
   await Hive.openBox('word_status_box');
+  await Hive.openBox('npc_state_box');
+
   runApp(
     ChangeNotifierProvider(
       create: (_) => WordViewModel(),

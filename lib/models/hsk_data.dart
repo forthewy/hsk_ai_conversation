@@ -6,6 +6,7 @@ class HskData {
   final List<String> grammarPatterns;
   final List<String> sentencePatterns;
 
+
   const HskData({
     required this.level,
     required this.topics,

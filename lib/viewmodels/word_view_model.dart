@@ -108,7 +108,8 @@ class WordViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 검색
+  // -------검색-------
+  // 검색창 입력
   void changeSearchKeyword(String keyword) {
     searchKeyword = keyword;
 
