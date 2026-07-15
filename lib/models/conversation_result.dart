@@ -2,10 +2,10 @@ import 'npc_state.dart';
 
 class ConversationResult {
   final String reply;
-  final NpcState state;
+  final String translation;
 
   ConversationResult({
     required this.reply,
-    required this.state,
+    required this.translation,
   });
 }

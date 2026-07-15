@@ -1,10 +1,21 @@
 import 'package:hive/hive.dart';
+import 'package:hskchat/repositories/quest_repository.dart';
 
 import '../models/npc_data.dart';
+import '../models/quest_progress.dart';
 
 class GameRepository {
   final npcMemoryBox = Hive.box('npc_memory_box');
   final playerMemoryBox = Hive.box('player_memory_box');
+
+  final QuestRepository questRepository = QuestRepository();
+
+  late QuestProgress progress;
+
+  GameRepository() {
+    progress = questRepository.createInitialProgress();
+  }
+
   Map<String, dynamic> getPlayerMemory() {
     return Map<String, dynamic>.from(playerMemoryBox.toMap());
   }

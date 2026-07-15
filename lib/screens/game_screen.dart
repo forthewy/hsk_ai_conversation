@@ -78,12 +78,9 @@ class _GameScreenState extends State<GameScreen> {
         playerMessage: text,
         sampledWords: sampledWords,
         hskLevel: viewModel.playerHskLevel,
-        state: viewModel.getNpcState(npcData.objectId),
       );
-
       viewModel.addMessage(role: 'player', content: text);
-      viewModel.addMessage(role: 'npc', content: result.reply);
-      viewModel.setNpcState(npcData.objectId, result.state);
+      viewModel.addMessage(role: 'npc', content: "${result.reply}\n(${result.translation})");
       dialogController.clear();
     } finally {
       viewModel.setNpcLoading(false);

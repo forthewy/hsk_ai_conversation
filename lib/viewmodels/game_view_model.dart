@@ -11,7 +11,6 @@ class GameViewModel extends ChangeNotifier {
   bool isTalking = false;
   List<Map<String, String>> sessionMessages = [];
   int playerHskLevel = 1;
-  Map<String, NpcState> npcStates = {};
 
   // 대화 시작
   void startDialog(GameObject npc) {
@@ -65,13 +64,4 @@ class GameViewModel extends ChangeNotifier {
   bool get hasCurrentNpc => currentNpc != null;
 
   String get currentNpcName => currentNpc?.name ?? '';
-
-  NpcState getNpcState(String npcId) {
-    return npcStates[npcId] ?? NpcState.introduction;
-  }
-  // -------setter-------
-  void setNpcState(String npcId, NpcState state) {
-    npcStates[npcId] = state;
-    notifyListeners();
-  }
 }

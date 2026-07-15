@@ -14,10 +14,10 @@ class NpcPromptBuilder {
     switch (state) {
       case NpcState.introduction:
         return buildIntroductionStatePrompt(playerMemory);
+      case NpcState.practice:
+        return buildPracticePrompt();
       case NpcState.quest:
         return buildQuestStatePrompt();
-      case NpcState.freeTalk:
-        return buildFreeTalkStatePrompt();
       case NpcState.questComplete:
         return buildQuestCompletePrompt();
     }
@@ -37,27 +37,13 @@ class NpcPromptBuilder {
   String buildQuestStatePrompt() {
     return '''
 현재 상태 : Quest
-Introduction은 이미 끝났습니다.
-
-절대로 다시
-
-- 자기소개
-- 이름 묻기
-- 취미 묻기
-
-를 하지 마세요.
-
 반드시 두 문장 안에 퀘스트를 전달하세요.
+인사하지 마세요
 
 퀘스트:
 학교에 있는 선생님을 찾아가 인사하세요.
 
 목표: 퀘스트 전달
-
-플레이어가 인사하더라도
-짧게 인사한 뒤 자연스럽게 퀘스트를 설명하세요.
-
-다른 주제로 대화를 시작하지 마세요.
 ''';
   }
 
@@ -70,22 +56,19 @@ Introduction은 이미 끝났습니다.
 
 규칙:
 - 완료를 칭찬한다.
-- 보상을 알려준다.
 - 새로운 퀘스트는 주지 않는다.
 ''';
   }
 
-  String buildFreeTalkStatePrompt() {
+  String buildPracticePrompt() {
     return '''
-현재 상태: FreeTalk
+현재 상태: Practice
 
-목표:
-플레이어와 자유롭게 대화한다.
+플레이어와 자연스럽게 대화하세요.
 
-규칙:
-- 새로운 퀘스트를 시작하지 않는다.
-- 이미 알고 있는 정보는 다시 묻지 않는다.
-- 자연스럽게 대화를 이어간다.
+최근 기억을 활용하세요.
+
+새로운 정보를 하나 정도 물어보세요.
 ''';
   }
 
@@ -131,10 +114,11 @@ Introduction은 이미 끝났습니다.
       이 NPC만의 기억:
       $npcMemoryText
       
-      이미 기억한 정보를 다시 질문하지 마세요.
       ''';
   }
-
+  // 기억하고 있는 정보는 사실로 간주하세요.
+  // 기억에 있는 내용을 다시 질문하지 마세요.
+  // 플레이어에 대한 정보를 물어볼시 기억을 참고하세요
   String buildRecentPrompt(List<Map<String, String>> recentMessages) {
     final recentText = recentMessages.isEmpty
         ? '아직 최근 대화 없음'
@@ -160,13 +144,17 @@ Introduction은 이미 끝났습니다.
 
   String buildOutputPrompt() {
     return '''
-        출력은 아래와 같은 형식입니다.
-        
-        잘못된 예
-        你叫什么名字？
-        
-        올바른 예
-        你叫什么名字？ (이름이 뭐야?)
+      반드시 JSON 객체 하나만 출력하세요.
+
+      필드
+      - reply: NPC가 말하는 중국어
+      - translation: reply를 한국어로 번역한 문장
+      
+      예시
+      {
+        "reply":"你好。",
+        "translation":"안녕하세요."
+      }
         ''';
   }
 
@@ -188,28 +176,17 @@ Introduction은 이미 끝났습니다.
     ===== MUST =====
     ${buildMustPrompt()}
     
-    ===== PROHIBITION =====
-    ${buildProhibitionPrompt()}
-    
-    ===== STATE =====
-    ${buildStatePrompt(state, playerMemory)}
-    
     ===== PRIORITY =====
     ${buildPriorityPrompt()}
     
     ===== MEMORY =====
     ${buildMemoryPrompt(npc, playerMemory)}
     
-
-    
-    ===== HSK =====
-    ${buildHskPrompt(hsk)}
-    
-    ===== WORDS =====
-    ${buildWordPrompt(sampledWords)}
-    
     ===== OUTPUT =====
     ${buildOutputPrompt()}
+    
+    ===== STATE =====
+    ${buildStatePrompt(state, playerMemory)}
     
     ===== PLAYER =====
     $playerMessage
@@ -218,6 +195,17 @@ Introduction은 이미 끝났습니다.
     ''';
   }
 }
+// 금지 내용 삭제
+//    ===== PROHIBITION =====
+//     ${buildProhibitionPrompt()}
+// 
+// HSK 내용 삭제
+// ===== HSK =====
+//  ${buildHskPrompt(hsk)}
+//     
+// 아는 단어 삭제
+// ===== WORDS =====
+// ${buildWordPrompt(sampledWords)}
 //    최근 메세지 내역 삭제
 //    ===== RECENT =====
 //     ${buildRecentPrompt(recentMessages)}

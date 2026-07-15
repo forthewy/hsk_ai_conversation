@@ -1,12 +1,16 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:hskchat/services/quest_service.dart';
 
 import '../models/conversation_result.dart';
 import '../models/npc_data.dart';
 import '../repositories/conversation_repository.dart';
 import '../repositories/game_repository.dart';
+import '../repositories/npc_state_repository.dart';
+import '../repositories/quest_repository.dart';
 import 'ai_service.dart';
 import 'memory_extractor_service.dart';
-import '../models/npc_state.dart';
 import 'npc_state_service.dart';
 
 class ConversationService {
@@ -15,7 +19,9 @@ class ConversationService {
   final ConversationRepository conversationRepository;
   final MemoryExtractorService memoryExtractor;
   final NpcStateService stateService = NpcStateService();
-
+  final QuestService questService = QuestService();
+  final QuestRepository questRepository = QuestRepository();
+  final NpcStateRepository npcStateRepository = NpcStateRepository();
 
   ConversationService({
     required this.aiService,
@@ -77,10 +83,19 @@ class ConversationService {
     required String playerMessage,
     required List<String> sampledWords,
     required int hskLevel,
-    required NpcState state,
   }) async {
     await _extractAndSaveMemory(text: playerMessage, npcData: npcData);
+
+    final state =
+    npcStateRepository.getState(npcData.objectId);
+    debugPrint("${npcData.objectId} : ${state}");
     final playerMemory = gameRepository.getPlayerMemory();
+    gameRepository.progress = questService.updateProgress(
+      quest: questRepository.tutorialQuest,
+      progress: gameRepository.progress,
+      npcId: npcData.objectId,
+      playerMessage: playerMessage,
+    );
 
     await conversationRepository.addRecentMessage(
       npcId: npcData.objectId,
@@ -88,18 +103,36 @@ class ConversationService {
       content: playerMessage,
     );
 
+    final questCompleted = questService.isCompleted(
+      quest: questRepository.tutorialQuest,
+      progress: gameRepository.progress,
+    );
+
+    String cleanJsonText(String text) {
+      return text
+          .replaceAll('```json', '')
+          .replaceAll('```', '')
+          .trim();
+    }
+
     // NPC에게 보낼 메시지만 전처리
     final processedPlayerMessage = _preprocessPlayerMessage(playerMessage);
     final nextState = stateService.nextState(
+      npcId: npcData.objectId,
       currentState: state,
       playerMemory: playerMemory,
+      questCompleted: questCompleted,
     );
 
     debugPrint("현재 상태 : $state");
     debugPrint("playerMemory : $playerMemory");
     debugPrint("다음 상태 : $nextState");
 
-    final reply = await aiService.npcChat(
+
+    debugPrint("Quest 완료: $questCompleted");
+    debugPrint("Quest 진행도: ${gameRepository.progress.currentCount}");
+
+    final response = await aiService.npcChat(
       npc: npcData,
       playerMessage: processedPlayerMessage,
       playerMemory: gameRepository.getPlayerMemory(),
@@ -110,19 +143,28 @@ class ConversationService {
       hskLevel: hskLevel,
       state: nextState,
     );
-    debugPrint('5 npcChat 완료: $reply');
+
+    debugPrint('5 npcChat 완료: $response');
+    final cleanedText = cleanJsonText(response);
+
+    final responseData = jsonDecode(cleanedText);
 
     debugPrint('현재 NPC 기억: ${npcData.memories}');
+
+    await npcStateRepository.setState(
+      npcData.objectId,
+      nextState,
+    );
 
     await conversationRepository.addRecentMessage(
       npcId: npcData.objectId,
       role: 'npc',
-      content: reply,
+      content: responseData['reply'],
     );
 
     return ConversationResult(
-      reply: reply,
-      state: nextState,
+      reply: responseData['reply'],
+      translation: responseData['translation'],
     );
   }
 

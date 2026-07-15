@@ -3,7 +3,7 @@ import 'dart:io';
 
 Future<void> main() async {
 
-  final text = File('assets/data/1.json').readAsStringSync();
+  final text = File('assets/data/4.json').readAsStringSync();
   final data = jsonDecode(text);
   final Map<String, List<String>> wordMeaningList = {};
 
@@ -19,7 +19,7 @@ Future<void> main() async {
 
   final json = jsonEncode(wordMeaningList);
 
-  File("1_beforeTranslate.json").writeAsStringSync(json);
+  File("4_translate_source.json").writeAsStringSync(json);
 }
 
 Future<void> loadJson() async {

@@ -1,7 +1,6 @@
 enum NpcState {
   introduction,
-  //dailyTalk,
+  practice,
   quest,
   questComplete,
-  freeTalk,
 }

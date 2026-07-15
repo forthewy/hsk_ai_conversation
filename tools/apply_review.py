@@ -1,11 +1,11 @@
 import json
 
 # 기존 파일
-with open("assets/translations/1_ko.json", "r", encoding="utf-8") as f:
+with open("assets/translations/4_ko.json", "r", encoding="utf-8") as f:
     original = json.load(f)
 
 # 수정 내용
-with open("tools/reviews/1_ko_patch.json", "r", encoding="utf-8") as f:
+with open("tools/reviews/4_ko_patch.json", "r", encoding="utf-8") as f:
     patch = json.load(f)
 
 count = 0
@@ -18,5 +18,5 @@ for key, value in patch.items():
 
 print(f"{count}개 수정 완료")
 
-with open("1_ko_fixed.json", "w", encoding="utf-8") as f:
+with open("4_ko_fixed.json", "w", encoding="utf-8") as f:
     json.dump(original, f, ensure_ascii=False, indent=2)
